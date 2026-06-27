@@ -139,9 +139,9 @@ The session state for this project — which heuristics are active, the running 
 
 ## Team
 
-- **[Name]** — Perception & Evaluation (classification, scoring)
-- **[Name]** — Memory & Graph Structure
-- **[Name]** — Orchestration, Persistence (Antigravity/Interactions API) & Frontend
+- **Engineer 1** — Perception & Evaluation (classification, scoring)
+- **Engineer 2** — Memory & Graph Structure
+- **Engineer 3** — Orchestration, Persistence (Antigravity/Interactions API) & Frontend
 
 ## What's Next
 
