@@ -2,12 +2,11 @@
 
 **A self-improving land-cover classification agent that gets less wrong over time — through memory, not retraining.**
 
-
 ---
 
 ## The Problem
 
-Land-cover data — captured by satellites, citizen science, and remote sensing programs at agencies like NASA and ESA — has to be manually classified by domain experts: road, grass, tree, water, shrubland, and so on. This labeling work is slow, repetitive, and the same confusion patterns (e.g. shrubland mistaken for forest in low-contrast imagery) recur across batches without the classification system ever learning from its own mistakes.
+Land-cover data — captured by satellites, citizen science, and remote sensing programs at agencies like NASA and ESA — has to be manually classified by domain experts: road, grass, tree, water, residential density, and so on. This labeling work is slow, repetitive, and the same confusion patterns (e.g. dense residential mistaken for medium residential due to gradual transitions in housing density) recur across batches without the classification system ever learning from its own mistakes.
 
 Most AI classification tools don't fix this. They run inference, produce labels, and forget everything about *why* they were wrong the moment the batch is done. The next batch starts from zero.
 
@@ -31,7 +30,7 @@ This is **memory-driven adaptation**, not fine-tuning. The model's weights never
 
 This is the most important part of the project, and the one thing the live demo has to nail. **Self-improvement claims are worthless unless they're shown happening, live, in front of judges.** The demo is structured around one explicit before/after moment, not a general walkthrough of the architecture:
 
-1. **Batch 1** — run a batch of tiles containing a specific, recurring confusion pair (e.g. shrubland vs. forest). Show the live error rate on that pair. No heuristics exist yet.
+1. **Batch 1** — run a batch of tiles containing a specific, recurring confusion pair (e.g. dense residential vs. medium residential). Show the live error rate on that pair. No heuristics exist yet.
 2. **The loop runs** — Strategist Agent analyzes the errors from Batch 1, extracts a heuristic in plain English, and writes it to the MongoDB Atlas memory graph. Show this heuristic on screen, in the judges' own words, not just a confidence number.
 3. **Batch 2** — a held-out batch with the *same* confusion pair. The Classifier Agent retrieves the relevant heuristic before classifying. Show the error rate on that specific pair dropping, live, side by side with Batch 1.
 4. **The graph**: one simple chart, error rate on the target confusion pair, batch over batch, trending down. This is the single visual that makes "self-improving" provable rather than asserted.
@@ -40,10 +39,10 @@ Everything else in the README — the graph structure, the two-agent architectur
 
 ## Why a Graph, Not a Flat List
 
-A flat list of heuristics doesn't scale and doesn't discriminate — an unrelated rule about urban/water confusion can get injected into a forest/shrubland tile and actively hurt accuracy. Our graph structure fixes this:
+A flat list of heuristics doesn't scale and doesn't discriminate — an unrelated rule about freeway/overpass confusion can get injected into a dense/medium-residential tile and actively hurt accuracy. Our graph structure fixes this:
 
-- **Nodes** are either `ErrorPattern`s (a specific recurring confusion, e.g. "shrubland → forest in low-contrast tiles") or `Heuristic`s (the extracted, actionable instruction derived from one or more error patterns)
-- **Edges** capture relationships: similarity between error patterns, which heuristics were derived from which errors, and class hierarchy (e.g. shrubland and forest are both `is_a` vegetation)
+- **Nodes** are either `ErrorPattern`s (a specific recurring confusion, e.g. "dense residential → medium residential due to gradual density transitions") or `Heuristic`s (the extracted, actionable instruction derived from one or more error patterns)
+- **Edges** capture relationships: similarity between error patterns, which heuristics were derived from which errors, and class hierarchy (e.g. dense, medium, and sparse residential are all `is_a` residential)
 - **Retrieval is similarity-based**: before classifying a new tile, we embed its visual context and pull only the nearest-neighbor heuristics — precise, not exhaustive
 - **Conflict resolution**: when retrieval surfaces multiple heuristics for one tile, they're ranked by `confidence_weight` and only the top-k are injected into the classification prompt. The model itself reconciles any remaining tension between injected heuristics at inference time — we don't try to pre-resolve conflicts in the retrieval layer.
 
@@ -56,7 +55,7 @@ This is **not** a static-corpus RAG system. There is no fixed knowledge base. Th
 │   PERCEPTION     │     │     MEMORY        │     │   ORCHESTRATION      │
 │  & EVALUATION    │     │  (Graph Memory)   │     │  & PERSISTENCE       │
 │                  │     │                   │     │                      │
-│ • EuroSAT tiles  │────▶│ • MongoDB Atlas   │◀───▶│ • Antigravity env    │
+│ • UC Merced tiles│────▶│ • MongoDB Atlas   │◀───▶│ • Antigravity env    │
 │ • Gemini 3.5     │     │   (nodes/edges as │     │   (Interactions API) │
 │   multimodal     │     │   documents)      │     │ • Session/run state  │
 │   classification │     │ • ErrorPattern &  │     │ • Loop orchestration │
@@ -142,7 +141,7 @@ The `ErrorPattern` and `Heuristic` nodes are stored as documents in **MongoDB At
     {
       "batch_number": 0,
       "overall_accuracy": 0.0,
-      "per_confusion_pair_error_rate": {"shrubland_forest": 0.0},
+      "per_confusion_pair_error_rate": {"denseresidential_mediumresidential": 0.0},
       "active_heuristic_ids": ["..."]
     }
   ]
@@ -151,16 +150,18 @@ The `ErrorPattern` and `Heuristic` nodes are stored as documents in **MongoDB At
 
 ## Dataset
 
-[EuroSAT](https://github.com/phelber/EuroSAT) — Sentinel-2 satellite imagery, 10 land-cover classes, small enough to run end-to-end within a hackathon timeframe while still surfacing genuine, repeatable confusion patterns.
+[UC Merced Land Use Dataset](http://weegee.vision.ucmerced.edu/datasets/landuse.html) — 21 land-use classes, 100 images each (2,100 total), 256×256 1ft-resolution aerial imagery. Small enough to download and run end-to-end within a hackathon timeframe, while reliably surfacing genuine, repeatable confusion patterns — published benchmarks consistently show persistent confusion between visually and semantically related classes (most notably dense/medium/sparse residential, distinguished only by building density and spacing) even with strong modern vision models. This matters directly for our demo: a system can't show "self-improvement" if the underlying classifier is already near-perfect with nothing left to learn from.
 
-**Note on the evaluation signal:** for this build, "expert correction" is simulated via EuroSAT's held-out ground-truth labels rather than a live human-in-the-loop. The architecture is designed to accept real expert feedback as a drop-in replacement for the ground-truth check in a production setting.
+For the live demo, we deliberately focus batches on the residential-density cluster (`denseresidential`, `mediumresidential`, `sparseresidential`, `buildings`) rather than running across all 21 classes — this guarantees a real, well-documented confusion pattern to demonstrate the loop on, rather than hoping for enough errors to emerge by chance.
+
+**Note on the evaluation signal:** for this build, "expert correction" is simulated via UC Merced's held-out ground-truth labels rather than a live human-in-the-loop. The architecture is designed to accept real expert feedback as a drop-in replacement for the ground-truth check in a production setting.
 
 ## Tech Stack
 
 - **Classification:** Gemini 3.5 (multimodal)
 - **Memory graph:** MongoDB Atlas (document storage for `ErrorPattern`/`Heuristic` nodes) + Atlas Vector Search (embedding-based similarity retrieval), with Gemini embeddings
 - **Persistence/state:** Google Interactions API — Managed Agents (Antigravity)
-- **Dataset:** EuroSAT
+- **Dataset:** UC Merced Land Use Dataset
 - **Frontend:** [fill in — e.g. React/Next.js, Streamlit excluded per hackathon rules]
 
 ## Team
