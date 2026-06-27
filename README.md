@@ -43,18 +43,24 @@ This is **not** a static-corpus RAG system. There is no fixed knowledge base. Th
 │   PERCEPTION     │     │     MEMORY        │     │   ORCHESTRATION      │
 │  & EVALUATION    │     │  (Graph Memory)   │     │  & PERSISTENCE       │
 │                  │     │                   │     │                      │
-│ • EuroSAT tiles  │────▶│ • networkx graph  │◀───▶│ • Antigravity env    │
-│ • Gemini 3.5     │     │ • ErrorPattern &  │     │   (Interactions API) │
-│   multimodal     │     │   Heuristic nodes │     │ • Session/run state  │
-│   classification │     │ • Embedding-based │     │ • Loop orchestration │
-│ • Ground-truth    │     │   similarity      │     │ • Frontend + charts  │
-│   scoring         │     │   retrieval       │     │                      │
+│ • EuroSAT tiles  │────▶│ • MongoDB Atlas   │◀───▶│ • Antigravity env    │
+│ • Gemini 3.5     │     │   (nodes/edges as │     │   (Interactions API) │
+│   multimodal     │     │   documents)      │     │ • Session/run state  │
+│   classification │     │ • ErrorPattern &  │     │ • Loop orchestration │
+│ • Ground-truth    │     │   Heuristic docs  │     │ • Frontend + charts  │
+│   scoring         │     │ • Atlas Vector    │     │                      │
+│                  │     │   Search for       │     │                      │
+│                  │     │   similarity        │     │                      │
 └─────────────────┘     └──────────────────┘     └─────────────────────┘
 ```
 
 ### Why Gemini 3.5 / Managed Agents (Interactions API)
 
 The session state for this project — which heuristics are active, the running accuracy history, the batch-by-batch error rates — lives inside a **persistent Antigravity environment** via the Interactions API, rather than a local database. The environment ID is passed on every follow-up call so the agent's accumulated experience genuinely persists in a hosted, stateful runtime. This isn't a decorative integration — stateful persistence across iterative calls is exactly the problem Managed Agents solves, and it's the backbone of how this system "remembers" across the whole run.
+
+### Why MongoDB Atlas (Graph Memory Storage)
+
+The `ErrorPattern` and `Heuristic` nodes are stored as documents in **MongoDB Atlas**, with **Atlas Vector Search** powering the embedding-based similarity retrieval — instead of an in-memory graph that disappears the moment the process restarts. This matters for the core claim of the project: a system that "remembers" should still remember after a restart, between sessions, even after the hackathon ends. Atlas Vector Search replaces hand-rolled nearest-neighbor logic with a production-grade vector index, so retrieving the most relevant past errors/heuristics for a new tile is a native query, not custom infrastructure we had to build from scratch. The graph's relational structure (similarity edges, `derived_from` links, `is_a` class hierarchy) is modeled directly in the document schema and traversed at query time.
 
 ## Data Schemas
 
@@ -130,7 +136,7 @@ The session state for this project — which heuristics are active, the running 
 ## Tech Stack
 
 - **Classification:** Gemini 3.5 (multimodal)
-- **Memory graph:** Python, `networkx`, Gemini embeddings for similarity search
+- **Memory graph:** MongoDB Atlas (document storage for `ErrorPattern`/`Heuristic` nodes) + Atlas Vector Search (embedding-based similarity retrieval), with Gemini embeddings
 - **Persistence/state:** Google Interactions API — Managed Agents (Antigravity)
 - **Dataset:** EuroSAT
 - **Frontend:** [fill in — e.g. React/Next.js, Streamlit excluded per hackathon rules]
@@ -146,5 +152,3 @@ The session state for this project — which heuristics are active, the running 
 The loop demonstrated here — classify, evaluate, extract, persist, retrieve — is domain-agnostic. The same architecture applies anywhere expert correction is the bottleneck on AI adoption: medical imaging triage, manufacturing defect detection, or any classification task where the cost of human review is high and failure patterns repeat. Memory-driven adaptation offers a path to systems that keep improving in production without the cost or latency of retraining.
 
 ---
-
-*Built in ~24 hours for the 2026 AI Engineer World's Fair Hackathon. All code, prompts, and architecture were built during the event.*
