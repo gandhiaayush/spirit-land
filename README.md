@@ -133,7 +133,7 @@ The session state for this project — which heuristics are active, the running 
 - **Memory graph:** Python, `networkx`, Gemini embeddings for similarity search
 - **Persistence/state:** Google Interactions API — Managed Agents (Antigravity)
 - **Dataset:** EuroSAT
-- **Frontend:** [fill in — e.g. React/Next.js, Streamlit excluded per hackathon rules]
+- **Frontend:** Next.js 14, Recharts, Tailwind CSS — real-time dashboard via Server-Sent Events
 
 ## Team
 

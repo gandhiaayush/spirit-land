@@ -50,13 +50,15 @@ def _stub_get_relevant_heuristics(batch_context: str, top_k: int = 5) -> list[di
 
 def _stub_classify_batch(tile_paths: list[str], heuristics: list[dict]) -> list[dict]:
     import random
-    import uuid
     labels = ["forest", "shrubland", "water", "urban", "highway", "annual_crop",
               "permanent_crop", "pasture", "sea_lake", "industrial"]
+    # How many images exist per class (10 downloaded)
+    _N_IMAGES = 10
     predictions = []
-    for path in tile_paths:
+    for i, path in enumerate(tile_paths):
         true_label = random.choice(labels)
         predicted_label = random.choice(labels) if random.random() > 0.6 else true_label
+        img_idx = (i + random.randint(0, _N_IMAGES - 1)) % _N_IMAGES
         predictions.append({
             "tile_id": Path(path).stem,
             "batch_id": "stub",
@@ -67,6 +69,7 @@ def _stub_classify_batch(tile_paths: list[str], heuristics: list[dict]) -> list[
             "model_reasoning": "stub classification",
             "retrieved_heuristic_ids": [h["node_id"] for h in heuristics],
             "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+            "image_url": f"/tiles/{true_label}/{img_idx:03d}.jpg",
         })
     return predictions
 
@@ -149,26 +152,44 @@ async def run_loop(
         await _broadcast({"type": "batch_start", "batch_number": batch_num})
 
         # 1. Retrieve relevant heuristics from graph memory
+        await _broadcast({"type": "step", "step": "retrieving", "batch_number": batch_num})
         batch_context = f"batch {batch_num}"
         heuristics = get_relevant_heuristics(batch_context, top_k=5)
 
         # 2. Classify tiles
+        await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
         tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
         predictions = classify_batch(tile_paths, heuristics)
 
+        # Emit per-tile events for live frontend display
+        for i, pred in enumerate(predictions):
+            await _broadcast({
+                "type": "tile_classified",
+                "tile": pred,
+                "batch_number": batch_num,
+                "tile_index": i,
+                "total_tiles": len(predictions),
+            })
+            if STUB_MODE:
+                await asyncio.sleep(0.18)  # stagger so tiles appear one-by-one
+
         # 3. Score against ground truth
+        await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
         scores = score_batch(predictions)
 
         # 4. Update graph with new error patterns / heuristics
+        await _broadcast({"type": "step", "step": "extracting", "batch_number": batch_num})
         new_heuristic_ids = update_graph(predictions)
 
         # 5. Build batch summary (matches Session/Run Record schema)
+        await _broadcast({"type": "step", "step": "storing", "batch_number": batch_num})
         active_ids = [h["node_id"] for h in heuristics] + new_heuristic_ids
         batch_summary = {
             "batch_number": batch_num,
             "overall_accuracy": scores["overall_accuracy"],
             "per_confusion_pair_error_rate": scores["per_confusion_pair_error_rate"],
             "active_heuristic_ids": active_ids,
+            "tile_count": len(tile_paths),
         }
 
         # 6. Persist to Antigravity
