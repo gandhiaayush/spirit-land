@@ -79,6 +79,25 @@ async def submit_correction(tile_id: str, corrected_label: str):
     return {"status": "received", "tile_id": tile_id, "corrected_label": corrected_label}
 
 
+@app.get("/arm")
+def get_arm():
+    """Current memory ablation arm: cold | knn | reflective."""
+    import memory_graph
+    return {"arm": memory_graph.get_active_arm()}
+
+
+@app.post("/arm")
+def set_arm(arm: str):
+    """Switch the memory ablation arm before a run (drives the dashboard Memory toggle:
+    'cold' = no memory, 'reflective' = graph memory). Invalid values are ignored."""
+    import memory_graph
+    try:
+        memory_graph.set_active_arm(arm)
+    except ValueError:
+        pass
+    return {"arm": memory_graph.get_active_arm()}
+
+
 @app.get("/stream")
 async def stream_events():
     """

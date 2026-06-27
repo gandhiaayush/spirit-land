@@ -114,13 +114,22 @@ def _import_e2():
 # ── tile loader (replace with real EuroSAT dataset path) ─────────────────────
 
 def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> list[str]:
-    dataset_path = Path(dataset_dir)
-    if not dataset_path.exists() or STUB_MODE:
-        # Return fake paths in stub mode
+    if STUB_MODE:
+        # Fake paths are fine in stub mode — only used as tile_id, never opened.
         return [f"tile_{batch_number}_{i:03d}.tif" for i in range(batch_size)]
-    all_tiles = sorted(dataset_path.rglob("*.jpg")) + sorted(dataset_path.rglob("*.tif"))
-    start = (batch_number - 1) * batch_size
-    return [str(p) for p in all_tiles[start: start + batch_size]]
+    dataset_path = Path(dataset_dir)
+    if dataset_path.exists():
+        all_tiles = (sorted(dataset_path.rglob("*.jpg")) + sorted(dataset_path.rglob("*.tif"))
+                     + sorted(dataset_path.rglob("*.png")))
+        start = (batch_number - 1) * batch_size
+        return [str(p) for p in all_tiles[start: start + batch_size]]
+    # No-API v1 path: synthetic fallback patches written to disk (no Earth Engine; Gemini-key
+    # only). Alternate train/test so consecutive batches present fresh scenes for before/after.
+    import dataset_fallback
+    n_per_class = max(1, batch_size // 4)
+    split = "train" if batch_number % 2 == 1 else "test"
+    patches = dataset_fallback.get_demo_batch(n_per_class=n_per_class, split=split)
+    return [p.image_path for p in patches]
 
 
 # ── batch context builder ─────────────────────────────────────────────────────
