@@ -11,6 +11,7 @@ Endpoints:
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import BackgroundTasks, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,6 +65,18 @@ async def start_run(
 def clear_session():
     persistence.clear_session()
     return {"status": "cleared"}
+
+
+@app.post("/correction")
+async def submit_correction(tile_id: str, corrected_label: str):
+    """Scientist submits a manual correction for a misclassified tile."""
+    await orchestrator._broadcast({
+        "type": "correction_applied",
+        "tile_id": tile_id,
+        "corrected_label": corrected_label,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    return {"status": "received", "tile_id": tile_id, "corrected_label": corrected_label}
 
 
 @app.get("/stream")
