@@ -1,0 +1,6 @@
+# Local secrets
+.env
+__pycache__/
+.pytest_cache/
+graph_state.json
+session.json

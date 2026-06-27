@@ -74,15 +74,20 @@ def _stub_classify_batch(tile_paths: list[str], heuristics: list[dict]) -> list[
 def _stub_score_batch(predictions: list[dict]) -> dict:
     total = len(predictions)
     correct = sum(1 for p in predictions if p["correct"])
-    confusion: dict[str, int] = {}
-    for p in predictions:
+    # The "money signal" is row-normalized: of all patches whose TRUE class is X, what
+    # fraction were called Y. Denominator = support of the true class, not the whole batch.
+    true_counts: dict[str, int] = {}
+    confusion: dict[str, list] = {}   # key -> [true_label, count] (don't split the key:
+    for p in predictions:             # real labels like "shrub_and_scrub" contain '_')
+        true_counts[p["true_label"]] = true_counts.get(p["true_label"], 0) + 1
         if not p["correct"]:
             key = f"{p['true_label']}_{p['predicted_label']}"
-            confusion[key] = confusion.get(key, 0) + 1
+            confusion.setdefault(key, [p["true_label"], 0])[1] += 1
     return {
         "overall_accuracy": correct / total if total else 0.0,
         "per_confusion_pair_error_rate": {
-            k: round(v / total, 4) for k, v in confusion.items()
+            key: round(count / true_counts[true], 4)
+            for key, (true, count) in confusion.items()
         },
     }
 
@@ -113,6 +118,58 @@ def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> li
     all_tiles = sorted(dataset_path.rglob("*.jpg")) + sorted(dataset_path.rglob("*.tif"))
     start = (batch_number - 1) * batch_size
     return [str(p) for p in all_tiles[start: start + batch_size]]
+
+
+# ── batch context builder ─────────────────────────────────────────────────────
+
+def _build_batch_context(batch_num: int, tile_paths: list[str], session: dict) -> str:
+    """
+    Build a richer natural-language context string for heuristic retrieval.
+
+    Tries, in order:
+      1. (non-stub) classifier.gemma_summarize on the first few tiles
+      2. the worst confusion pairs from prior batches in this session
+      3. a plain "batch N" fallback
+    Never raises — any failure falls through to the next strategy.
+    """
+    # Strategy 1: ask the classifier to summarize the actual tiles
+    if not STUB_MODE:
+        try:
+            import classifier  # type: ignore
+            if hasattr(classifier, "gemma_summarize"):
+                summaries = []
+                for t in tile_paths[:3]:
+                    summaries.append(str(classifier.gemma_summarize(t)))
+                joined = " ".join(s for s in summaries if s).strip()
+                if joined:
+                    return joined
+        except Exception:
+            pass
+
+    # Strategy 2: surface the worst confusion pairs from prior batches so the
+    # retriever (and memory_graph._classes_in_context) can parse class names
+    try:
+        worst_keys: list[str] = []
+        worst_rate = -1.0
+        for prior in session.get("batches", []):
+            pairs = prior.get("per_confusion_pair_error_rate", {}) or {}
+            for key, rate in pairs.items():
+                try:
+                    r = float(rate)
+                except (TypeError, ValueError):
+                    continue
+                if r > worst_rate:
+                    worst_rate = r
+                    worst_keys = [key]
+                elif r == worst_rate:
+                    worst_keys.append(key)
+        if worst_keys:
+            return f"batch {batch_num} focus on " + " ".join(worst_keys)
+    except Exception:
+        pass
+
+    # Strategy 3: plain fallback
+    return f"batch {batch_num}"
 
 
 # ── main loop ─────────────────────────────────────────────────────────────────
@@ -149,11 +206,12 @@ async def run_loop(
         await _broadcast({"type": "batch_start", "batch_number": batch_num})
 
         # 1. Retrieve relevant heuristics from graph memory
-        batch_context = f"batch {batch_num}"
+        #    (load tiles first so the context can be built from real data)
+        tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
+        batch_context = _build_batch_context(batch_num, tile_paths, session)
         heuristics = get_relevant_heuristics(batch_context, top_k=5)
 
         # 2. Classify tiles
-        tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
         predictions = classify_batch(tile_paths, heuristics)
 
         # 3. Score against ground truth
@@ -176,6 +234,21 @@ async def run_loop(
 
         # 7. Broadcast to SSE subscribers
         await _broadcast({"type": "batch_complete", "batch": batch_summary, "session": session})
+
+        # 8. Emit an additive active-learning signal (new SSE event type the
+        #    frozen dashboard ignores harmlessly). The focus suggester may not
+        #    exist yet, so probe defensively and never let it break the loop.
+        focus = []
+        if not STUB_MODE:
+            try:
+                import memory_graph  # type: ignore
+                fn = getattr(memory_graph, "suggest_focus_classes", None)
+                if fn:
+                    focus = fn(top_n=3)
+            except Exception:
+                focus = []
+        if focus:
+            await _broadcast({"type": "next_focus", "batch_number": batch_num, "classes": focus})
 
         # small yield so FastAPI can flush SSE events
         await asyncio.sleep(0)
