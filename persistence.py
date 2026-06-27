@@ -13,22 +13,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
 
 load_dotenv()
 
 _SESSION_FILE = Path(__file__).parent / "session.json"
 _AGENT = "antigravity-preview-05-2026"
+_STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "true").lower() == "true"
 
-_client: genai.Client | None = None
+_client = None
 
 
-def _get_client() -> genai.Client:
+def _get_client():
     global _client
     if _client is None:
+        from google import genai  # only import when actually needed
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError("Set GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env file")
+        if not api_key or api_key == "placeholder":
+            raise EnvironmentError("Set a real GOOGLE_API_KEY in your .env file")
         _client = genai.Client(api_key=api_key)
     return _client
 
@@ -46,26 +47,30 @@ def _save_local_session(session: dict) -> None:
 def create_session() -> dict:
     """
     Start a brand-new SubStrata run.
-    Creates an Antigravity environment and saves the returned interaction ID locally.
-    Returns the initial Session/Run Record.
+    In stub mode: writes a local session.json without calling Antigravity.
+    In real mode: creates an Antigravity environment and stores the returned ID.
     """
-    client = _get_client()
     session_id = f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
-    interaction = client.interactions.create(
-        agent=_AGENT,
-        input=(
-            f"You are the state manager for SubStrata (session {session_id}), "
-            "a self-improving land-cover classification system. "
-            "Your job is to store and retrieve batch results, heuristic IDs, and accuracy history. "
-            "Acknowledge that the session has started."
-        ),
-        environment="remote",
-    )
+    if _STUB_MODE:
+        environment_id = f"stub_env_{session_id}"
+    else:
+        client = _get_client()
+        interaction = client.interactions.create(
+            agent=_AGENT,
+            input=(
+                f"You are the state manager for SubStrata (session {session_id}), "
+                "a self-improving land-cover classification system. "
+                "Your job is to store and retrieve batch results, heuristic IDs, and accuracy history. "
+                "Acknowledge that the session has started."
+            ),
+            environment="remote",
+        )
+        environment_id = interaction.id
 
     session = {
         "session_id": session_id,
-        "antigravity_environment_id": interaction.id,
+        "antigravity_environment_id": environment_id,
         "current_batch_number": 0,
         "batches": [],
     }
@@ -75,31 +80,28 @@ def create_session() -> dict:
 
 def save_batch(batch_summary: dict) -> dict:
     """
-    Append a completed batch's results to the session via Interactions API.
-
-    batch_summary must contain:
-        batch_number, overall_accuracy, per_confusion_pair_error_rate, active_heuristic_ids
+    Append a completed batch's results to the session.
+    In stub mode: local-only. In real mode: calls Interactions API.
     """
-    client = _get_client()
     session = _load_local_session()
     if session is None:
         raise RuntimeError("No active session — call create_session() first")
 
-    interaction = client.interactions.create(
-        agent=_AGENT,
-        input=(
-            f"Batch {batch_summary['batch_number']} complete. "
-            f"Results: {json.dumps(batch_summary)}. "
-            "Append this to the session history and confirm."
-        ),
-        previous_interaction_id=session["antigravity_environment_id"],
-    )
+    if not _STUB_MODE:
+        client = _get_client()
+        interaction = client.interactions.create(
+            agent=_AGENT,
+            input=(
+                f"Batch {batch_summary['batch_number']} complete. "
+                f"Results: {json.dumps(batch_summary)}. "
+                "Append this to the session history and confirm."
+            ),
+            previous_interaction_id=session["antigravity_environment_id"],
+        )
+        session["antigravity_environment_id"] = interaction.id
 
     session["current_batch_number"] = batch_summary["batch_number"]
     session["batches"].append(batch_summary)
-    # The environment_id is stable — it's the ID of the *first* interaction.
-    # We persist the latest interaction id so we can always chain forward.
-    session["antigravity_environment_id"] = interaction.id
     _save_local_session(session)
     return session
 

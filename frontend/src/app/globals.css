@@ -1,3 +1,89 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Sharp edges everywhere ──────────────────────────────────────────────── */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+:root {
+  --bg:     #ffffff;
+  --border: #e2e8f0;
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --accent: #059669;
+}
+
+body {
+  font-family: var(--font-inter, "Inter", sans-serif);
+  background-color: #ffffff;
+  color: var(--text-1);
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
+
+.label {
+  @apply text-[9px] font-semibold text-slate-400 uppercase tracking-widest;
+}
+
+.badge {
+  @apply inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 border;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+
+/* New tile drops in from above */
+@keyframes tile-fall {
+  0%   { opacity: 0; transform: translateY(-70px) scale(0.97); }
+  60%  { opacity: 1; transform: translateY(6px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-tile-fall {
+  animation: tile-fall 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Cycling: next tile slides in from right */
+@keyframes tile-slide-right {
+  0%   { opacity: 0; transform: translateX(60px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-tile-slide {
+  animation: tile-slide-right 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Info strip rises after tile lands */
+@keyframes info-rise {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-info-rise {
+  animation: info-rise 0.3s ease-out 0.1s both;
+}
+
+/* Subtle arrow bounce */
+@keyframes arrow-nudge {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(5px); }
+}
+.animate-arrow-nudge {
+  animation: arrow-nudge 1.1s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.4s ease forwards; }
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 1s linear infinite; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 4px; height: 4px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: #cbd5e1; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
