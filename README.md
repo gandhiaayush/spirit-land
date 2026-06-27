@@ -2,8 +2,6 @@
 
 **A self-improving land-cover classification agent that gets less wrong over time — through memory, not retraining.**
 
-Built at the 2026 AI Engineer World's Fair Hackathon (Continual Learning track) · [Demo Video](#) · [Live Submission](#)
-
 ---
 
 ## The Problem
