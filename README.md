@@ -24,15 +24,20 @@ Extract reusable heuristics → Store in graph memory → Retrieve relevant
 heuristics before the next classification → repeat
 ```
 
-Every time the system gets something wrong, it doesn't just log the mistake — it analyzes *why*, writes a plain-language heuristic, and stores it in a graph structured by similarity and class relationships. Before classifying the next patch, it queries that graph for relevant past errors and injects only the heuristics that actually apply — not a flat list of everything it's ever learned, but a targeted retrieval over its own failure history.
+Every time the system gets something wrong, it doesn't just log the mistake — it analyzes *why*, writes a plain-language heuristic, and stores it in a graph structured by similarity and class relationships. Before segmenting the next scene, it queries that graph for relevant past errors and injects only the heuristics that actually apply — not a flat list of everything it's ever learned, but a targeted retrieval over its own failure history.
 
 This is **memory-driven adaptation**, not fine-tuning. The model's weights never change. What changes is the system's accumulated, structured experience — the same way a researcher gets better at a domain by remembering which approaches worked, not by rewiring their brain. And because the memory is plain English, every improvement is auditable: you can *read* the lesson that fixed the error.
 
-## The Task: Patch-Grid Classification, Rendered as Segmentation
+## The Task: Gemini Segments Real Satellite Scenes
 
-We classify **real satellite scenes**, not curated single-label thumbnails. A scene is tiled into an N×N **grid of patches**; each patch is classified by Gemini into one land-cover class and rendered as a colored cell, so the output looks like a segmentation map of real geography.
+The core output is a **semantic segmentation** of a real satellite scene: Gemini 3.5 takes a Sentinel-2 RGB tile and returns a land-cover mask — *these* pixels are trees, *those* are shrub, water, built, bare. This is the product and the visual: a live segmentation overlay of real geography that visibly gets more correct across the run.
 
-The trick that keeps the whole thesis scorable: each patch gets **one** ground-truth label = the **majority class** of its pixels, read from a wall-to-wall label raster (Google Dynamic World). So it *looks* like segmentation on screen but *scores* like classification underneath — which means a clean, per-class error rate that can provably go down. (We deliberately do **not** stake the demo on per-pixel masks: Gemini can render a pretty mask layer, but that layer is **non-load-bearing** — scoring always runs on patch labels.)
+What makes a segmentation *scorable* — and what makes the whole continual-learning thesis possible — is the ground truth. **Google Dynamic World is a wall-to-wall, per-pixel label raster**, so every scene ships with a per-pixel answer key. We score Gemini's mask against it directly:
+
+- **Overall:** mean IoU / pixel accuracy across classes.
+- **The money signal:** the **per-confusion-pair pixel error rate** — e.g. the fraction of true-*trees* pixels Gemini labeled *shrub* — read off the pixel confusion matrix. This is the number that provably trends down as memory accumulates, and the overlay sharpens with it.
+
+Fidelity is a knob. The hero path is Gemini's **native segmentation-mask mode** for smooth boundaries; if mask quality on 10 m land cover proves rough, Gemini falls back to labeling a **coarse grid** — blockier, still a real Gemini-produced segmentation, still scored per-pixel. The loop is identical either way. **Validate this first** with a quick spike on a handful of scenes before betting the demo on a fidelity tier.
 
 ## The Demo: Proving It Actually Learns
 
