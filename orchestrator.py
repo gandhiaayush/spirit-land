@@ -45,6 +45,7 @@ async def _broadcast(event: dict) -> None:
 # ── stub implementations (replaced by real imports when E1/E2 are ready) ──────
 
 def _stub_get_relevant_heuristics(batch_context: str, top_k: int = 5) -> list[dict]:
+    # Intentionally left empty — persistence.get_heuristics() is always used instead
     return []
 
 
@@ -151,10 +152,10 @@ async def run_loop(
     for batch_num in range(start_batch, start_batch + num_batches):
         await _broadcast({"type": "batch_start", "batch_number": batch_num})
 
-        # 1. Retrieve relevant heuristics from graph memory
+        # 1. Retrieve relevant heuristics — Antigravity is the source of truth (E3).
+        #    When E2's memory_graph is ready, merge its results here alongside these.
         await _broadcast({"type": "step", "step": "retrieving", "batch_number": batch_num})
-        batch_context = f"batch {batch_num}"
-        heuristics = get_relevant_heuristics(batch_context, top_k=5)
+        heuristics = persistence.get_heuristics(batch_number=batch_num, top_k=5)
 
         # 2. Classify tiles
         await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
@@ -183,6 +184,7 @@ async def run_loop(
 
         # 5. Build batch summary (matches Session/Run Record schema)
         await _broadcast({"type": "step", "step": "storing", "batch_number": batch_num})
+        # active_ids: heuristics used this batch (from Antigravity) + any new ones from E2's graph
         active_ids = [h["node_id"] for h in heuristics] + new_heuristic_ids
         batch_summary = {
             "batch_number": batch_num,

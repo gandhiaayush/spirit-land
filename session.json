@@ -1,0 +1,692 @@
+{
+  "session_id": "session_20260627_220003",
+  "antigravity_environment_id": "stub_env_session_20260627_220003",
+  "current_batch_number": 10,
+  "batches": [
+    {
+      "batch_number": 1,
+      "overall_accuracy": 0.7,
+      "per_confusion_pair_error_rate": {
+        "industrial_permanent_crop": 0.05,
+        "industrial_pasture": 0.05,
+        "permanent_crop_industrial": 0.05,
+        "forest_highway": 0.05,
+        "shrubland_water": 0.05,
+        "sea_lake_permanent_crop": 0.05
+      },
+      "active_heuristic_ids": [],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 2,
+      "overall_accuracy": 0.6,
+      "per_confusion_pair_error_rate": {
+        "forest_permanent_crop": 0.05,
+        "shrubland_forest": 0.05,
+        "urban_sea_lake": 0.05,
+        "pasture_permanent_crop": 0.05,
+        "permanent_crop_water": 0.05,
+        "highway_pasture": 0.05,
+        "forest_sea_lake": 0.05,
+        "annual_crop_sea_lake": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_indu_perm_001",
+        "h_indu_past_001",
+        "h_perm_indu_001",
+        "h_fore_high_001"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 3,
+      "overall_accuracy": 0.6,
+      "per_confusion_pair_error_rate": {
+        "annual_crop_pasture": 0.05,
+        "urban_sea_lake": 0.05,
+        "shrubland_industrial": 0.05,
+        "pasture_water": 0.05,
+        "pasture_highway": 0.05,
+        "pasture_urban": 0.05,
+        "forest_permanent_crop": 0.05,
+        "highway_urban": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_fore_perm_002",
+        "h_shru_fore_002",
+        "h_urba_seal_002",
+        "h_past_perm_002",
+        "h_indu_perm_001"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 4,
+      "overall_accuracy": 0.65,
+      "per_confusion_pair_error_rate": {
+        "forest_industrial": 0.05,
+        "highway_pasture": 0.05,
+        "pasture_water": 0.05,
+        "annual_crop_sea_lake": 0.05,
+        "water_shrubland": 0.05,
+        "pasture_annual_crop": 0.05,
+        "urban_permanent_crop": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_annu_past_003",
+        "h_urba_seal_003",
+        "h_shru_indu_003",
+        "h_past_wate_003",
+        "h_fore_perm_002"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 5,
+      "overall_accuracy": 0.7,
+      "per_confusion_pair_error_rate": {
+        "forest_pasture": 0.05,
+        "sea_lake_pasture": 0.05,
+        "urban_permanent_crop": 0.05,
+        "permanent_crop_shrubland": 0.05,
+        "sea_lake_permanent_crop": 0.05,
+        "shrubland_pasture": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_fore_indu_004",
+        "h_high_past_004",
+        "h_past_wate_004",
+        "h_annu_seal_004",
+        "h_annu_past_003"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 6,
+      "overall_accuracy": 0.65,
+      "per_confusion_pair_error_rate": {
+        "water_sea_lake": 0.05,
+        "sea_lake_annual_crop": 0.05,
+        "highway_pasture": 0.05,
+        "shrubland_annual_crop": 0.05,
+        "permanent_crop_highway": 0.05,
+        "annual_crop_water": 0.05,
+        "sea_lake_forest": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_fore_past_005",
+        "h_seal_past_005",
+        "h_urba_perm_005",
+        "h_perm_shru_005",
+        "h_fore_indu_004"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 7,
+      "overall_accuracy": 0.55,
+      "per_confusion_pair_error_rate": {
+        "annual_crop_highway": 0.05,
+        "annual_crop_sea_lake": 0.05,
+        "permanent_crop_annual_crop": 0.05,
+        "sea_lake_annual_crop": 0.05,
+        "shrubland_annual_crop": 0.05,
+        "urban_highway": 0.05,
+        "urban_water": 0.05,
+        "water_forest": 0.05,
+        "forest_sea_lake": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_wate_seal_006",
+        "h_seal_annu_006",
+        "h_high_past_006",
+        "h_shru_annu_006",
+        "h_fore_past_005"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 8,
+      "overall_accuracy": 0.5,
+      "per_confusion_pair_error_rate": {
+        "annual_crop_sea_lake": 0.05,
+        "permanent_crop_highway": 0.05,
+        "urban_highway": 0.05,
+        "water_urban": 0.05,
+        "pasture_urban": 0.1,
+        "industrial_forest": 0.05,
+        "urban_permanent_crop": 0.05,
+        "forest_highway": 0.05,
+        "forest_sea_lake": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_annu_high_007",
+        "h_annu_seal_007",
+        "h_perm_annu_007",
+        "h_seal_annu_007",
+        "h_wate_seal_006"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 9,
+      "overall_accuracy": 0.75,
+      "per_confusion_pair_error_rate": {
+        "permanent_crop_forest": 0.05,
+        "urban_water": 0.05,
+        "highway_forest": 0.05,
+        "shrubland_pasture": 0.05,
+        "pasture_highway": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_past_urba_008",
+        "h_annu_seal_008",
+        "h_perm_high_008",
+        "h_urba_high_008",
+        "h_annu_high_007"
+      ],
+      "tile_count": 20
+    },
+    {
+      "batch_number": 10,
+      "overall_accuracy": 0.75,
+      "per_confusion_pair_error_rate": {
+        "permanent_crop_shrubland": 0.05,
+        "highway_urban": 0.05,
+        "urban_permanent_crop": 0.05,
+        "annual_crop_forest": 0.05,
+        "pasture_highway": 0.05
+      },
+      "active_heuristic_ids": [
+        "h_perm_fore_009",
+        "h_urba_wate_009",
+        "h_high_fore_009",
+        "h_shru_past_009",
+        "h_past_urba_008"
+      ],
+      "tile_count": 20
+    }
+  ],
+  "heuristics": [
+    {
+      "node_id": "h_indu_perm_001",
+      "type": "heuristic",
+      "text": "True class 'industrial' is being confused with 'permanent_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "industrial_permanent_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 1
+    },
+    {
+      "node_id": "h_indu_past_001",
+      "type": "heuristic",
+      "text": "True class 'industrial' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "industrial_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 1
+    },
+    {
+      "node_id": "h_perm_indu_001",
+      "type": "heuristic",
+      "text": "True class 'permanent_crop' is being confused with 'industrial' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_industrial"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 1
+    },
+    {
+      "node_id": "h_fore_high_001",
+      "type": "heuristic",
+      "text": "True class 'forest' is being confused with 'highway' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "forest_highway"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 1
+    },
+    {
+      "node_id": "h_fore_perm_002",
+      "type": "heuristic",
+      "text": "True class 'forest' is being confused with 'permanent_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "forest_permanent_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 2
+    },
+    {
+      "node_id": "h_shru_fore_002",
+      "type": "heuristic",
+      "text": "Shrubland has irregular texture and brown-green mix; true forest has uniform dark green.",
+      "applies_to_confusion_pairs": [
+        "shrubland_forest"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 2
+    },
+    {
+      "node_id": "h_urba_seal_002",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'sea_lake' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 2
+    },
+    {
+      "node_id": "h_past_perm_002",
+      "type": "heuristic",
+      "text": "True class 'pasture' is being confused with 'permanent_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "pasture_permanent_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 2
+    },
+    {
+      "node_id": "h_annu_past_003",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 3
+    },
+    {
+      "node_id": "h_urba_seal_003",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'sea_lake' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 3
+    },
+    {
+      "node_id": "h_shru_indu_003",
+      "type": "heuristic",
+      "text": "True class 'shrubland' is being confused with 'industrial' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "shrubland_industrial"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 3
+    },
+    {
+      "node_id": "h_past_wate_003",
+      "type": "heuristic",
+      "text": "True class 'pasture' is being confused with 'water' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "pasture_water"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 3
+    },
+    {
+      "node_id": "h_fore_indu_004",
+      "type": "heuristic",
+      "text": "True class 'forest' is being confused with 'industrial' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "forest_industrial"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 4
+    },
+    {
+      "node_id": "h_high_past_004",
+      "type": "heuristic",
+      "text": "True class 'highway' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "highway_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 4
+    },
+    {
+      "node_id": "h_past_wate_004",
+      "type": "heuristic",
+      "text": "True class 'pasture' is being confused with 'water' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "pasture_water"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 4
+    },
+    {
+      "node_id": "h_annu_seal_004",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'sea_lake' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 4
+    },
+    {
+      "node_id": "h_fore_past_005",
+      "type": "heuristic",
+      "text": "True class 'forest' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "forest_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 5
+    },
+    {
+      "node_id": "h_seal_past_005",
+      "type": "heuristic",
+      "text": "True class 'sea_lake' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "sea_lake_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 5
+    },
+    {
+      "node_id": "h_urba_perm_005",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'permanent_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_permanent_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 5
+    },
+    {
+      "node_id": "h_perm_shru_005",
+      "type": "heuristic",
+      "text": "True class 'permanent_crop' is being confused with 'shrubland' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_shrubland"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 5
+    },
+    {
+      "node_id": "h_wate_seal_006",
+      "type": "heuristic",
+      "text": "Narrow rivers and canals are 'water'; large open bodies with no shore \u2192 sea_lake.",
+      "applies_to_confusion_pairs": [
+        "water_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 6
+    },
+    {
+      "node_id": "h_seal_annu_006",
+      "type": "heuristic",
+      "text": "True class 'sea_lake' is being confused with 'annual_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "sea_lake_annual_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 6
+    },
+    {
+      "node_id": "h_high_past_006",
+      "type": "heuristic",
+      "text": "True class 'highway' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "highway_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 6
+    },
+    {
+      "node_id": "h_shru_annu_006",
+      "type": "heuristic",
+      "text": "True class 'shrubland' is being confused with 'annual_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "shrubland_annual_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 6
+    },
+    {
+      "node_id": "h_annu_high_007",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'highway' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_highway"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 7
+    },
+    {
+      "node_id": "h_annu_seal_007",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'sea_lake' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 7
+    },
+    {
+      "node_id": "h_perm_annu_007",
+      "type": "heuristic",
+      "text": "Permanent crop rows are tighter, uniform, and visible in all seasons.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_annual_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 7
+    },
+    {
+      "node_id": "h_seal_annu_007",
+      "type": "heuristic",
+      "text": "True class 'sea_lake' is being confused with 'annual_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "sea_lake_annual_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 7
+    },
+    {
+      "node_id": "h_past_urba_008",
+      "type": "heuristic",
+      "text": "True class 'pasture' is being confused with 'urban' (10.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "pasture_urban"
+      ],
+      "confidence_weight": 0.8,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 8
+    },
+    {
+      "node_id": "h_annu_seal_008",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'sea_lake' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_sea_lake"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 8
+    },
+    {
+      "node_id": "h_perm_high_008",
+      "type": "heuristic",
+      "text": "True class 'permanent_crop' is being confused with 'highway' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_highway"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 8
+    },
+    {
+      "node_id": "h_urba_high_008",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'highway' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_highway"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 8
+    },
+    {
+      "node_id": "h_perm_fore_009",
+      "type": "heuristic",
+      "text": "True class 'permanent_crop' is being confused with 'forest' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_forest"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 9
+    },
+    {
+      "node_id": "h_urba_wate_009",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'water' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_water"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 9
+    },
+    {
+      "node_id": "h_high_fore_009",
+      "type": "heuristic",
+      "text": "True class 'highway' is being confused with 'forest' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "highway_forest"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 9
+    },
+    {
+      "node_id": "h_shru_past_009",
+      "type": "heuristic",
+      "text": "True class 'shrubland' is being confused with 'pasture' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "shrubland_pasture"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 9
+    },
+    {
+      "node_id": "h_perm_shru_010",
+      "type": "heuristic",
+      "text": "True class 'permanent_crop' is being confused with 'shrubland' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "permanent_crop_shrubland"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 10
+    },
+    {
+      "node_id": "h_high_urba_010",
+      "type": "heuristic",
+      "text": "Highway tiles show linear structures with no building density; urban has block patterns.",
+      "applies_to_confusion_pairs": [
+        "highway_urban"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 10
+    },
+    {
+      "node_id": "h_urba_perm_010",
+      "type": "heuristic",
+      "text": "True class 'urban' is being confused with 'permanent_crop' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "urban_permanent_crop"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 10
+    },
+    {
+      "node_id": "h_annu_fore_010",
+      "type": "heuristic",
+      "text": "True class 'annual_crop' is being confused with 'forest' (5.0% error rate) \u2014 apply stricter spectral/texture checks.",
+      "applies_to_confusion_pairs": [
+        "annual_crop_forest"
+      ],
+      "confidence_weight": 0.9,
+      "times_applied": 0,
+      "times_helped": 0,
+      "batch_origin": 10
+    }
+  ]
+}
