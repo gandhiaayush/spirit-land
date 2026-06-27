@@ -1,17 +1,13 @@
 """
-Engineer 1 smoke test.
-Tries GEE first; falls back to synthetic data automatically.
+Engineer 1 smoke test — uses real GEE data if available, synthetic fallback otherwise.
 
-With GEE:
-  export GCP_PROJECT=<your-project-id>
-  gcloud auth application-default login
-
-Without GEE: just run it — synthetic fallback kicks in.
+Run with:
+  GEMINI_API_KEY=<key> python3 smoke_test.py
 """
 
-from classifier import ClassifierAgent, GemmaSummarizer, score_batch
+import classifier
+from classifier import GemmaSummarizer, score_batch
 
-# Try real GEE, fall back to synthetic
 try:
     from dataset import DynamicWorldDataset
     ds = DynamicWorldDataset()
@@ -20,7 +16,8 @@ try:
         n_per_class=3,
         split="train",
     )
-    print("Using real Dynamic World data.")
+    tile_paths = [p.image_path for p in patches]
+    print(f"Using real Dynamic World data. ({len(patches)} patches)")
 except Exception:
     from dataset_fallback import get_demo_batch
     patches = get_demo_batch(
@@ -28,33 +25,32 @@ except Exception:
         n_per_class=3,
         split="train",
     )
-    print("Using synthetic fallback data.")
+    tile_paths = [p.image_path for p in patches]
+    print(f"Using synthetic fallback data. ({len(patches)} patches)")
 
-print(f"Patches: {[p.true_label for p in patches]}\n")
+print(f"Labels: {[p.true_label for p in patches]}\n")
 
 summarizer = GemmaSummarizer()
-print("Gemma summary for patch 0:")
-print(summarizer.summarize(patches[0].image_path), "\n")
-
-agent = ClassifierAgent()
+print("Gemma summary (patch 0):")
+print(summarizer.summarize(tile_paths[0]), "\n")
 
 print("--- Baseline (no heuristics) ---")
-records = agent.classify_batch(patches, batch_id="baseline")
-result = score_batch(records, batch_id="baseline")
-print(result.summary())
+preds = classifier.classify_batch(tile_paths, heuristics=[])
+result = score_batch(preds)
+print(f"Accuracy: {result['overall_accuracy']:.1%}")
+print(f"Confusions: {result['per_confusion_pair_error_rate']}\n")
 
-heuristics = [
-    "Trees have tall canopy (>5m), rough irregular texture, and >70% dark green cover.",
-    "Shrub and scrub has low-medium canopy (1–5m), medium texture, 40–80% medium-green cover.",
-    "Grass is near-zero canopy, smooth texture, 20–70% bright-green cover with very regular edges.",
+demo_heuristics = [
+    {"node_id": "h1", "text": "Trees have tall canopy (>5m), rough irregular texture, dark green, >70% cover."},
+    {"node_id": "h2", "text": "Shrub and scrub has low-medium canopy (1-5m), medium texture, 40-80% lighter green cover."},
+    {"node_id": "h3", "text": "Grass is near-zero canopy, smooth texture, 20-70% bright green, very regular edges."},
 ]
 
-print("\n--- With heuristics ---")
-records2 = agent.classify_batch(patches, heuristics=heuristics, batch_id="with_heuristics")
-result2 = score_batch(records2, batch_id="with_heuristics")
-print(result2.summary())
+print("--- With heuristics ---")
+preds2 = classifier.classify_batch(tile_paths, heuristics=demo_heuristics)
+result2 = score_batch(preds2)
+print(f"Accuracy: {result2['overall_accuracy']:.1%}")
+print(f"Confusions: {result2['per_confusion_pair_error_rate']}\n")
 
-print(f"\nAccuracy delta: {result2.accuracy - result.accuracy:+.1%}")
-print("\nConfusion pairs (for Engineer 2):")
-for cp in result.confusion_pairs:
-    print(f"  {cp}")
+delta = result2["overall_accuracy"] - result["overall_accuracy"]
+print(f"Accuracy delta: {delta:+.1%}")

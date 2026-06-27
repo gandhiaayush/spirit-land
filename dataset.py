@@ -86,7 +86,8 @@ class DynamicWorldDataset:
             .mode()
         )
 
-        # Sentinel-2 SR median composite, normalised to [0,1]
+        # Sentinel-2 SR median composite. Visualization range [0, 0.3] matches
+        # GEE's default S2 True Color display (reflectance, not DN).
         s2_rgb = (
             ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
             .filterBounds(geom)
@@ -95,8 +96,9 @@ class DynamicWorldDataset:
             .select(["B4", "B3", "B2"])
             .median()
             .divide(10000)
-            .clamp(0, 1)
+            .clamp(0, 0.3)
         )
+        PATCH_PX = 64  # output image size sent to Gemini
 
         patches: List[Patch] = []
 
@@ -137,22 +139,27 @@ class DynamicWorldDataset:
                 label_int = int(label_result.get("label") or 6)
                 true_label = DW_LABEL_TO_CLASS.get(label_int, "built")
 
-                # RGB pixels via sampleRectangle (synchronous, no export job)
-                rgb_data = s2_rgb.sampleRectangle(
-                    region=patch_geom,
-                    defaultValue=0,
-                ).getInfo()["properties"]
-
-                r = np.array(rgb_data["B4"], dtype=np.float32)
-                g = np.array(rgb_data["B3"], dtype=np.float32)
-                b = np.array(rgb_data["B2"], dtype=np.float32)
-
+                # Use computePixels for an exact PATCH_PX×PATCH_PX output.
+                # Values are in [0, 0.3] (clamped above); scale to [0, 255].
+                px_w = lon_step / PATCH_PX
+                px_h = lat_step / PATCH_PX
+                pixels = ee.data.computePixels({
+                    "expression": s2_rgb,
+                    "fileFormat": "NUMPY_NDARRAY",
+                    "grid": {
+                        "dimensions": {"width": PATCH_PX, "height": PATCH_PX},
+                        "affineTransform": {
+                            "scaleX": px_w, "shearX": 0, "translateX": patch_bbox[0],
+                            "shearY": 0, "scaleY": -px_h, "translateY": patch_bbox[3],
+                        },
+                        "crsCode": "EPSG:4326",
+                    },
+                })
+                r = np.array(pixels["B4"], dtype=np.float32)
+                g = np.array(pixels["B3"], dtype=np.float32)
+                b = np.array(pixels["B2"], dtype=np.float32)
                 rgb = np.stack([r, g, b], axis=-1)
-                mx = rgb.max()
-                if mx > 0:
-                    rgb = (rgb / mx * 255).clip(0, 255).astype(np.uint8)
-                else:
-                    rgb = rgb.astype(np.uint8)
+                rgb = (rgb / 0.3 * 255).clip(0, 255).astype(np.uint8)
 
                 Image.fromarray(rgb).save(img_path)
                 with open(meta_path, "w") as f:
