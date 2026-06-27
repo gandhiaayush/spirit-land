@@ -6,16 +6,25 @@ interface Props {
   batches: BatchRecord[];
 }
 
+// Dynamic World land-cover classes. Keys are `${true_label}_${predicted_label}`.
+const DW_CLASSES = [
+  "trees", "shrub_and_scrub", "grass", "crops", "flooded_vegetation",
+  "water", "snow_and_ice", "built", "bare",
+];
+
 function formatPair(key: string): [string, string] {
-  const classes = [
-    "annual_crop", "permanent_crop", "sea_lake", "forest", "shrubland", "water",
-    "urban", "highway", "industrial", "pasture", "herbaceous_vegetation", "residential", "river",
-  ];
-  for (const cls of classes) {
+  // Match the longest valid DW class prefix as the `true` label, leaving the
+  // remainder as the `pred` label (e.g. "shrub_and_scrub_trees" → ["shrub_and_scrub", "trees"]).
+  let best: [string, string] | null = null;
+  for (const cls of DW_CLASSES) {
     if (key.startsWith(cls + "_") && key.length > cls.length + 1) {
-      return [cls, key.slice(cls.length + 1)];
+      const rest = key.slice(cls.length + 1);
+      if (DW_CLASSES.includes(rest) && (!best || cls.length > best[0].length)) {
+        best = [cls, rest];
+      }
     }
   }
+  if (best) return best;
   const idx = key.indexOf("_");
   return idx >= 0 ? [key.slice(0, idx), key.slice(idx + 1)] : [key, "?"];
 }

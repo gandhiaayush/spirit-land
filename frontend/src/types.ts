@@ -37,4 +37,5 @@ export type SSEEvent =
   | { type: "tile_classified"; tile: TileRecord; batch_number: number; tile_index: number; total_tiles: number }
   | { type: "batch_complete"; batch: BatchRecord; session: Session }
   | { type: "run_complete"; session: Session }
+  | { type: "next_focus"; batch_number: number; classes: string[] }
   | { type: "correction_applied"; tile_id: string; corrected_label: string; timestamp: string };

@@ -17,6 +17,7 @@ export default function Home() {
   const [totalTilesInBatch, setTotalTilesInBatch] = useState(0);
   const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [memoryEnabled, setMemoryEnabled] = useState(true);
+  const [nextFocus, setNextFocus] = useState<string[]>([]);
 
   // Run controls
   const [numBatches, setNumBatches] = useState(5);
@@ -71,6 +72,8 @@ export default function Home() {
             ? prev.map((b) => (b.batch_number === event.batch.batch_number ? event.batch : b))
             : [...prev, event.batch];
         });
+      } else if (event.type === "next_focus") {
+        setNextFocus(event.classes);
       } else if (event.type === "run_complete") {
         setRunning(false);
         setCurrentBatch(null);
@@ -84,9 +87,16 @@ export default function Home() {
 
   const handleStart = useCallback(async () => {
     setRunning(true);
+    setNextFocus([]);
+    // Switch the ablation arm before the run: Memory On → reflective, Memory Off → cold.
+    try {
+      await fetch(`/api/arm?arm=${memoryEnabled ? "reflective" : "cold"}`, { method: "POST" });
+    } catch {
+      // non-blocking: proceed with the run even if arm switch fails
+    }
     connectSSE();
     await fetch(`/api/run?num_batches=${numBatches}&batch_size=${batchSize}`, { method: "POST" });
-  }, [connectSSE, numBatches, batchSize]);
+  }, [connectSSE, numBatches, batchSize, memoryEnabled]);
 
   const handleClear = useCallback(async () => {
     await fetch("/api/session", { method: "DELETE" });
@@ -97,6 +107,7 @@ export default function Home() {
     setCurrentBatchTiles([]);
     setTotalTilesInBatch(0);
     setCorrections({});
+    setNextFocus([]);
   }, []);
 
   const handleCorrection = useCallback((tile: TileRecord, label: string) => {
@@ -153,7 +164,7 @@ export default function Home() {
           </div>
 
           {/* Status */}
-          <div className="flex items-center px-4 ml-auto">
+          <div className="flex flex-col items-end justify-center px-4 ml-auto gap-0.5">
             {running ? (
               <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
                 <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse" style={{ borderRadius: "0 !important" }} />
@@ -162,6 +173,11 @@ export default function Home() {
             ) : session ? (
               <span className="text-[11px] text-slate-400 font-mono">{session.current_batch_number} batch{session.current_batch_number !== 1 ? "es" : ""}</span>
             ) : null}
+            {memoryEnabled && nextFocus.length > 0 && (
+              <span className="text-[10px] text-emerald-700/70 font-medium">
+                Next batch targeting: {nextFocus.map((c) => c.replace(/_/g, " ")).join(", ")}
+              </span>
+            )}
           </div>
         </div>
       </header>
