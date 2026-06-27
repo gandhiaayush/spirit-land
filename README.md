@@ -2,6 +2,7 @@
 
 **A self-improving land-cover classification agent that gets less wrong over time — through memory, not retraining.**
 
+
 ---
 
 ## The Problem
@@ -26,6 +27,17 @@ Every time the system gets something wrong, it doesn't just log the mistake — 
 
 This is **memory-driven adaptation**, not fine-tuning. The model's weights never change. What changes is the system's accumulated, structured experience — the same way a researcher gets better at a domain by remembering which approaches worked, not by rewiring their brain.
 
+## The Demo: Proving It Actually Learns
+
+This is the most important part of the project, and the one thing the live demo has to nail. **Self-improvement claims are worthless unless they're shown happening, live, in front of judges.** The demo is structured around one explicit before/after moment, not a general walkthrough of the architecture:
+
+1. **Batch 1** — run a batch of tiles containing a specific, recurring confusion pair (e.g. shrubland vs. forest). Show the live error rate on that pair. No heuristics exist yet.
+2. **The loop runs** — Strategist Agent analyzes the errors from Batch 1, extracts a heuristic in plain English, and writes it to the MongoDB Atlas memory graph. Show this heuristic on screen, in the judges' own words, not just a confidence number.
+3. **Batch 2** — a held-out batch with the *same* confusion pair. The Classifier Agent retrieves the relevant heuristic before classifying. Show the error rate on that specific pair dropping, live, side by side with Batch 1.
+4. **The graph**: one simple chart, error rate on the target confusion pair, batch over batch, trending down. This is the single visual that makes "self-improving" provable rather than asserted.
+
+Everything else in the README — the graph structure, the two-agent architecture, the persistence layer — exists in service of making this four-step moment real and demonstrable. If a teammate is ever unsure what to prioritize building next, the answer is: whatever gets this sequence working end-to-end first.
+
 ## Why a Graph, Not a Flat List
 
 A flat list of heuristics doesn't scale and doesn't discriminate — an unrelated rule about urban/water confusion can get injected into a forest/shrubland tile and actively hurt accuracy. Our graph structure fixes this:
@@ -33,6 +45,7 @@ A flat list of heuristics doesn't scale and doesn't discriminate — an unrelate
 - **Nodes** are either `ErrorPattern`s (a specific recurring confusion, e.g. "shrubland → forest in low-contrast tiles") or `Heuristic`s (the extracted, actionable instruction derived from one or more error patterns)
 - **Edges** capture relationships: similarity between error patterns, which heuristics were derived from which errors, and class hierarchy (e.g. shrubland and forest are both `is_a` vegetation)
 - **Retrieval is similarity-based**: before classifying a new tile, we embed its visual context and pull only the nearest-neighbor heuristics — precise, not exhaustive
+- **Conflict resolution**: when retrieval surfaces multiple heuristics for one tile, they're ranked by `confidence_weight` and only the top-k are injected into the classification prompt. The model itself reconciles any remaining tension between injected heuristics at inference time — we don't try to pre-resolve conflicts in the retrieval layer.
 
 This is **not** a static-corpus RAG system. There is no fixed knowledge base. The graph is entirely self-generated from the system's own evaluation history and evolves with every batch — retrieval over a system's own evolving failure memory, not retrieval over a fixed document store.
 
@@ -53,6 +66,15 @@ This is **not** a static-corpus RAG system. There is no fixed knowledge base. Th
 │                  │     │   similarity        │     │                      │
 └─────────────────┘     └──────────────────┘     └─────────────────────┘
 ```
+
+### Two Cooperating Gemini Agents
+
+SubStrata runs **two distinct, persistent Managed Agents** via the Gemini 3.5 Interactions API (Antigravity), each holding its own environment state and handing off to the other across the loop:
+
+- **Classifier Agent** — receives a batch of tiles plus any retrieved heuristics, performs the multimodal classification, and returns predictions with reasoning traces
+- **Strategist Agent** — receives the scored predictions, analyzes confusion patterns, extracts new heuristics, and updates the memory graph in MongoDB Atlas
+
+Framing this as two cooperating agents rather than one model making two kinds of calls is a deliberate architectural choice: persistent, stateful hand-off between agents is harder to build correctly than a single agent looping internally, and it's a more faithful use of what Managed Agents is actually for.
 
 ### Why Gemini 3.5 / Managed Agents (Interactions API)
 
@@ -152,3 +174,4 @@ The `ErrorPattern` and `Heuristic` nodes are stored as documents in **MongoDB At
 The loop demonstrated here — classify, evaluate, extract, persist, retrieve — is domain-agnostic. The same architecture applies anywhere expert correction is the bottleneck on AI adoption: medical imaging triage, manufacturing defect detection, or any classification task where the cost of human review is high and failure patterns repeat. Memory-driven adaptation offers a path to systems that keep improving in production without the cost or latency of retraining.
 
 ---
+
