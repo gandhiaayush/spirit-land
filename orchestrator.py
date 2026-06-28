@@ -123,12 +123,10 @@ def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> li
                      + sorted(dataset_path.rglob("*.png")))
         start = (batch_number - 1) * batch_size
         return [str(p) for p in all_tiles[start: start + batch_size]]
-    # Real geography: Sentinel-2 RGB + Dynamic World majority labels, tiled into an N×N grid
-    # via Earth Engine (a scene per batch). The whole grid is the segmentation surface.
-    import dataset, math
-    grid = max(2, round(math.sqrt(batch_size)))
-    patches = dataset.DynamicWorldDataset().fetch_scene(grid_size=grid)
-    return [p.image_path for p in patches]
+    # Real Sentinel-2 thumbnails (EuroSAT), curated single-class, mapped to DW classes and
+    # sequenced for the is_a transfer beat. Gemini classifies these reliably, so memory shows.
+    import realdata
+    return realdata.demo_batch(batch_number, batch_size)
 
 
 # ── batch context builder ─────────────────────────────────────────────────────
@@ -233,13 +231,13 @@ async def run_loop(
                 pred = classify_batch([path], heuristics)[0]
                 # attach a servable image_url so the dashboard renders the real tile
                 try:
-                    import re as _re
-                    stem = Path(path).stem
-                    pred["image_url"] = f"/api/patches/{stem}.png"
-                    _m = _re.search(r"r(\d+)c(\d+)", stem)
-                    if _m:
-                        pred["grid_row"] = int(_m.group(1))
-                        pred["grid_col"] = int(_m.group(2))
+                    import realdata, math as _math
+                    _url = realdata.to_image_url(path)
+                    if _url:
+                        pred["image_url"] = _url
+                    _n = max(1, int(_math.ceil(_math.sqrt(len(tile_paths)))))
+                    pred["grid_row"] = i // _n
+                    pred["grid_col"] = i % _n
                 except Exception:
                     pass
                 predictions.append(pred)

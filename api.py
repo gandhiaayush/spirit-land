@@ -133,6 +133,13 @@ def set_arm(arm: str):
     return {"arm": memory_graph.get_active_arm()}
 
 
+@app.get("/graph")
+def get_graph():
+    """Live memory-graph snapshot (class/error/heuristic nodes incl. heuristic text + edges)."""
+    import memory_graph
+    return memory_graph.export_graph()
+
+
 @app.get("/stream")
 async def stream_events():
     """

@@ -45,8 +45,8 @@ VEGETATION_CLUSTER = [
 ]
 
 # Demo region: Northern California Central Valley (crops, grass, shrub, trees)
-DEMO_REGION_BBOX = [-122.0, 37.2, -121.0, 38.0]  # [west, south, east, north]
-DEMO_GRID_SIZE = 8  # 8×8 = 64 patches per scene
+DEMO_REGION_BBOX = [-121.85, 37.45, -121.70, 37.60]  # [west, south, east, north]
+DEMO_GRID_SIZE = 3  # 8×8 = 64 patches per scene
 DEMO_SCALE_M = 100  # 100 m/pixel for GEE pulls — fast, sufficient for Gemini
 
 
