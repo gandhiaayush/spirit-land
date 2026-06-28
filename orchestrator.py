@@ -125,8 +125,9 @@ def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> li
         return [str(p) for p in all_tiles[start: start + batch_size]]
     # Real Sentinel-2 thumbnails (EuroSAT), curated single-class, mapped to DW classes and
     # sequenced for the is_a transfer beat. Gemini classifies these reliably, so memory shows.
-    import realdata
-    return realdata.demo_batch(batch_number, batch_size)
+    import dataset, math
+    grid = max(2, round(math.sqrt(batch_size)))           # batch_size 225 -> 15x15
+    return [p.image_path for p in dataset.DynamicWorldDataset().fetch_scene(grid_size=grid)]
 
 
 # ── batch context builder ─────────────────────────────────────────────────────
@@ -226,33 +227,39 @@ async def run_loop(
             # 2. Classify tiles — stream one tile at a time so each appears in the
             #    carousel the instant it is classified (not all at once after the batch).
             await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
-            predictions = []
-            for i, path in enumerate(tile_paths):
+            import re as _re
+            _CONC = int(os.environ.get("SUBSTRATA_CONCURRENCY", "12"))
+            predictions = [None] * len(tile_paths)
+
+            async def _classify_idx(i, path):
                 pred = (await asyncio.to_thread(classify_batch, [path], heuristics))[0]
-                # attach a servable image_url so the dashboard renders the real tile
                 try:
-                    import realdata, math as _math
-                    _url = realdata.to_image_url(path)
-                    if _url:
-                        pred["image_url"] = _url
-                    _n = max(1, int(_math.ceil(_math.sqrt(len(tile_paths)))))
-                    pred["grid_row"] = i // _n
-                    pred["grid_col"] = i % _n
+                    if not STUB_MODE:                              # GEE patch: r##c## in the id
+                        stem = Path(path).stem
+                        pred["image_url"] = f"/api/patches/{stem}.png"
+                        m = _re.search(r"r(\d+)c(\d+)", stem)
+                        if m:
+                            pred["grid_row"] = int(m.group(1))
+                            pred["grid_col"] = int(m.group(2))
+                    else:
+                        _n = max(1, round(len(tile_paths) ** 0.5))
+                        pred["grid_row"] = i // _n
+                        pred["grid_col"] = i % _n
                 except Exception:
                     pass
-                predictions.append(pred)
+                predictions[i] = pred
                 await _broadcast({
-                    "type": "tile_classified",
-                    "tile": pred,
-                    "batch_number": batch_num,
-                    "tile_index": i,
-                    "total_tiles": len(tile_paths),
+                    "type": "tile_classified", "tile": pred, "batch_number": batch_num,
+                    "tile_index": i, "total_tiles": len(tile_paths),
                 })
                 if STUB_MODE:
-                    await asyncio.sleep(0.18)  # stagger so tiles appear one-by-one
-                else:
-                    # throttle real Gemini calls under the per-minute free-tier limit
-                    await asyncio.sleep(float(os.environ.get("SUBSTRATA_REAL_DELAY", "0")))
+                    await asyncio.sleep(0.05)
+
+            # classify cells CONCURRENTLY in chunks so a 15x15 (225 cells) renders fast
+            for _s in range(0, len(tile_paths), _CONC):
+                await asyncio.gather(*[_classify_idx(i, tile_paths[i])
+                                       for i in range(_s, min(_s + _CONC, len(tile_paths)))])
+            predictions = [p for p in predictions if p is not None]
 
             # 3. Score against ground truth
             await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})

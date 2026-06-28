@@ -98,7 +98,7 @@ class DynamicWorldDataset:
             .divide(10000)
             .clamp(0, 0.3)
         )
-        PATCH_PX = 256  # output image size sent to Gemini
+        PATCH_PX = 128  # output image size sent to Gemini
 
         patches: List[Patch] = []
 

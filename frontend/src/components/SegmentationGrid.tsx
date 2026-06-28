@@ -120,7 +120,7 @@ export default function SegmentationGrid({ tiles, running = false }: Props) {
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-2">Segmentation</h2>
         <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-          Live land-cover segmentation of the satellite scene. Each cell is a classified Sentinel-2 patch, tinted by its predicted Dynamic World class.
+          Live land-cover segmentation of the satellite scene. Each cell is a classified Sentinel-2 patch, bordered by the color of its predicted Dynamic World class.
         </p>
         <p className="text-sm text-slate-500 font-medium mt-5">
           {running ? "Segmenting live satellite scene…" : "Press Start to segment a live satellite scene"}
@@ -167,12 +167,18 @@ export default function SegmentationGrid({ tiles, running = false }: Props) {
                 zIndex: isOpen ? 30 : undefined,
               }}
             >
-              {/* clipped tile body: image + tint + markers */}
+              {/* clipped tile body: crisp image + class-color border (+ red error ring) */}
               <div
                 title={`pred: ${tile.predicted_label} | truth: ${tile.true_label} — click to correct`}
                 onClick={() => setOpenKey((k) => (k === cellKey ? null : cellKey))}
                 className="absolute inset-0 overflow-hidden bg-slate-100 cursor-pointer"
-                style={{ border: `2px solid ${isError ? "#dc2626" : color}` }}
+                style={{
+                  // Inner border = predicted class color (inset, no layout shift).
+                  // Errors add a bright red ring just outside the class border.
+                  boxShadow: isError
+                    ? `inset 0 0 0 3px ${color}, 0 0 0 2px #dc2626`
+                    : `inset 0 0 0 3px ${color}`,
+                }}
               >
                 {tile.image_url && (
                   <img
@@ -182,8 +188,6 @@ export default function SegmentationGrid({ tiles, running = false }: Props) {
                     draggable={false}
                   />
                 )}
-                {/* translucent class tint */}
-                <div className="absolute inset-0" style={{ backgroundColor: color, opacity: 0.42 }} />
                 {/* error marker */}
                 {isError && (
                   <span className="absolute top-0 right-0 z-10 flex h-3.5 w-3.5 items-center justify-center bg-red-600 text-[9px] font-bold leading-none text-white">
