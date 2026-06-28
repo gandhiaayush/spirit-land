@@ -20,6 +20,7 @@ load_dotenv()
 _SESSION_FILE = Path(__file__).parent / "session.json"
 _AGENT = "antigravity-preview-05-2026"
 _STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "false").lower() == "true"
+_SKIP_ANTIGRAVITY = os.environ.get("SUBSTRATA_SKIP_ANTIGRAVITY", "1") == "1"  # Antigravity is flaky; default to local persistence
 
 _client = None
 
@@ -92,7 +93,7 @@ def create_session() -> dict:
     """
     session_id = f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
-    if _STUB_MODE:
+    if _STUB_MODE or _SKIP_ANTIGRAVITY:
         environment_id = f"stub_env_{session_id}"
     else:
         try:
@@ -143,7 +144,7 @@ def save_batch(batch_summary: dict) -> dict:
         raise RuntimeError("No active session — call create_session() first")
 
     env_id = session.get("antigravity_environment_id")
-    if not _STUB_MODE and env_id and env_id != "local":
+    if not _STUB_MODE and not _SKIP_ANTIGRAVITY and env_id and env_id != "local":
         try:
             client = _get_client()
             interaction = _create_interaction_with_retry(
