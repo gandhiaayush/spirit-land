@@ -1,0 +1,11 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+key.json
+session.json
+data/patches/
+*.png
+CLAUDE.local.md

@@ -12,6 +12,7 @@ Internal classes (ClassifierAgent, GemmaSummarizer) back the module functions.
 
 import json
 import re
+import time
 import warnings
 from collections import Counter
 from datetime import datetime, timezone
@@ -21,15 +22,16 @@ from typing import Dict, List, Optional
 import PIL.Image
 from google import genai
 
-from config import GEMINI_API_KEY, GEMINI_MODEL, GEMMA_MODEL, DW_CLASSES
+from config import GEMINI_API_KEY, GEMINI_MODEL, GEMMA_MODEL, DW_CLASSES, GCP_PROJECT, GCP_LOCATION
 
 warnings.filterwarnings("ignore", message=".*thought_signature.*")
 
-_client = genai.Client(api_key=GEMINI_API_KEY)
+_client = genai.Client(vertexai=True, project=GCP_PROJECT, location="global")
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -100,7 +102,10 @@ def _build_prompt(heuristics: List[str]) -> str:
     if not heuristics:
         return _BASE_PROMPT
     rules = "\n".join("  - " + h for h in heuristics)
-    return _BASE_PROMPT + f"\nApply these classification heuristics before deciding:\n{rules}\n"
+    return (
+        _BASE_PROMPT
+        + f"\nApply these classification heuristics before deciding:\n{rules}\n"
+    )
 
 
 def _parse(text: str):
@@ -109,7 +114,11 @@ def _parse(text: str):
         line = line.strip()
         if line.startswith("LABEL:"):
             raw = line.split(":", 1)[1].strip().lower().replace(" ", "_")
-            label = raw if raw in DW_CLASSES else next((c for c in DW_CLASSES if c in raw), raw)
+            label = (
+                raw
+                if raw in DW_CLASSES
+                else next((c for c in DW_CLASSES if c in raw), raw)
+            )
         elif line.startswith("CONFIDENCE:"):
             try:
                 confidence = float(re.search(r"[\d.]+", line.split(":", 1)[1]).group())
@@ -130,10 +139,17 @@ class ClassifierAgent:
     ) -> dict:
         prompt = _build_prompt(heuristics or [])
         img = PIL.Image.open(tile_path).convert("RGB")
-        response = _client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[img, prompt],
-        )
+        for attempt in range(3):
+            try:
+                response = _client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=[img, prompt],
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                time.sleep(10 * (attempt + 1))
         predicted_label, confidence, reasoning = _parse(response.text)
         true_label = _get_true_label(tile_path)
         return {
@@ -152,6 +168,7 @@ class ClassifierAgent:
 # ---------------------------------------------------------------------------
 # Module-level interface — called directly by orchestrator.py
 # ---------------------------------------------------------------------------
+
 
 def classify_batch(tile_paths: List[str], heuristics: List[dict]) -> List[dict]:
     """

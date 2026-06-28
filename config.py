@@ -1,12 +1,15 @@
 import os
 import subprocess
 
+from dotenv import load_dotenv
+load_dotenv()
+
 GCP_PROJECT = os.environ.get("GCP_PROJECT", "ai-hack-sf26sfo-7095")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
-GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-26b-a4b-it")  # available via same API key
+GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-26b-a4b-it-maas")
 
 # Dynamic World 9 classes (label int → class name)
 DW_LABEL_TO_CLASS = {
@@ -32,12 +35,18 @@ CLASS_HIERARCHY = {
 }
 
 # Ordered by canopy height/woodiness — basis for heuristic transfer
-VEGETATION_CLUSTER = ["trees", "shrub_and_scrub", "grass", "crops", "flooded_vegetation"]
+VEGETATION_CLUSTER = [
+    "trees",
+    "shrub_and_scrub",
+    "grass",
+    "crops",
+    "flooded_vegetation",
+]
 
 # Demo region: Northern California Central Valley (crops, grass, shrub, trees)
 DEMO_REGION_BBOX = [-122.0, 37.2, -121.0, 38.0]  # [west, south, east, north]
-DEMO_GRID_SIZE = 8    # 8×8 = 64 patches per scene
-DEMO_SCALE_M = 100    # 100 m/pixel for GEE pulls — fast, sufficient for Gemini
+DEMO_GRID_SIZE = 8  # 8×8 = 64 patches per scene
+DEMO_SCALE_M = 100  # 100 m/pixel for GEE pulls — fast, sufficient for Gemini
 
 
 def get_credentials():
@@ -50,6 +59,7 @@ def get_credentials():
     sa_key = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
     if sa_key and os.path.exists(sa_key):
         from google.oauth2 import service_account
+
         return service_account.Credentials.from_service_account_file(
             sa_key,
             scopes=[
@@ -61,6 +71,8 @@ def get_credentials():
     # Fall back to gcloud user token (works after `gcloud auth login`)
     result = subprocess.run(
         ["gcloud", "auth", "print-access-token"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return Credentials(token=result.stdout.strip())

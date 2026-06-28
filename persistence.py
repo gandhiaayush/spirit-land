@@ -26,10 +26,8 @@ _client: genai.Client | None = None
 def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError("Set GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env file")
-        _client = genai.Client(api_key=api_key)
+        project = os.environ.get("GCP_PROJECT", "ai-hack-sf26sfo-7095")
+        _client = genai.Client(vertexai=True, project=project, location="global")
     return _client
 
 
