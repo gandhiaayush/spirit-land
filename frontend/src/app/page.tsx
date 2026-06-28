@@ -234,7 +234,7 @@ export default function Home() {
               disabled={running}
               className="bg-white border border-slate-200 px-2 py-1 text-slate-900 text-sm focus:outline-none focus:border-emerald-400 disabled:opacity-40"
             >
-              <option value="demo">Demo data</option>
+              <option value="demo">Google EarthEngine (Sample)</option>
               <option value="upload">Upload files</option>
             </select>
             {datasetMode === "upload" && (
