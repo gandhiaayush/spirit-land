@@ -1,11 +1,16 @@
+# Local secrets
 .env
 .venv/
 venv/
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
 key.json
 session.json
-data/patches/
-*.png
+graph_state.json
+data/
+frontend/node_modules/
+frontend/.next/
+frontend/public/tiles/**/*.json
 CLAUDE.local.md

@@ -200,8 +200,8 @@ We deliberately focus demo batches on the **vegetation cluster** (`trees`, `shru
 - **Summarizer:** Gemma (fast, discriminative-feature retrieval key)
 - **Memory graph:** networkx in-memory + numpy cosine similarity, with Gemini embeddings
 - **Persistence/state:** Google Interactions API — Managed Agents (Antigravity)
-- **Dataset:** Google Dynamic World (via Earth Engine); ESA WorldCover fallback
-- **Frontend:** Next.js / React (Streamlit excluded per hackathon rules)
+- **Dataset:** EuroSAT
+- **Frontend:** Next.js 14, Recharts, Tailwind CSS — real-time dashboard via Server-Sent Events
 
 ## Team
 
