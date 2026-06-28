@@ -9,6 +9,7 @@ server-side without a local database.
 
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,46 @@ def _get_client():
     return _client
 
 
+# Substrings that mark a transient/provisioning error worth retrying.
+_RETRYABLE_MARKERS = (
+    "Resource setup",
+    "just started",
+    "RESOURCE_EXHAUSTED",
+    "429",
+    "503",
+    "UNAVAILABLE",
+)
+
+
+def _is_retryable(exc: Exception) -> bool:
+    message = str(exc)
+    return any(marker in message for marker in _RETRYABLE_MARKERS)
+
+
+def _create_interaction_with_retry(client, *, attempts: int = 3, **kwargs):
+    """
+    Call client.interactions.create(**kwargs), retrying transient/provisioning
+    errors up to `attempts` times with a ~4s sleep between tries.
+    Raises the last exception if every attempt fails.
+    """
+    last_exc = None
+    for attempt in range(1, attempts + 1):
+        try:
+            kwargs.setdefault("background", True)  # Antigravity requires background workflows
+            return client.interactions.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — must never let a transient error crash the loop
+            last_exc = exc
+            if attempt < attempts and _is_retryable(exc):
+                print(
+                    f"[persistence] Antigravity not ready (attempt {attempt}/{attempts}): "
+                    f"{exc}. Retrying in 4s..."
+                )
+                time.sleep(4)
+                continue
+            raise
+    raise last_exc
+
+
 def _load_local_session() -> dict | None:
     if _SESSION_FILE.exists():
         return json.loads(_SESSION_FILE.read_text())
@@ -54,18 +95,33 @@ def create_session() -> dict:
     if _STUB_MODE:
         environment_id = f"stub_env_{session_id}"
     else:
-        client = _get_client()
-        interaction = client.interactions.create(
-            agent=_AGENT,
-            input=(
-                f"You are the state manager for SubStrata (session {session_id}), "
-                "a self-improving land-cover classification system. "
-                "Your job is to store and retrieve batch results, heuristic IDs, and accuracy history. "
-                "Acknowledge that the session has started."
-            ),
-            environment="remote",
-        )
-        environment_id = interaction.id
+        try:
+            client = _get_client()
+            interaction = _create_interaction_with_retry(
+                client,
+                agent=_AGENT,
+                input=(
+                    f"You are the state manager for SubStrata (session {session_id}), "
+                    "a self-improving land-cover classification system. "
+                    "Your job is to store and retrieve batch results, heuristic IDs, and accuracy history. "
+                    "Acknowledge that the session has started."
+                ),
+                environment="remote",
+            )
+            environment_id = interaction.id
+        except Exception as exc:  # noqa: BLE001 — degrade to local instead of crashing the run
+            print(
+                f"[persistence] Antigravity session creation failed ({exc}); "
+                "falling back to local persistence."
+            )
+            session = {
+                "session_id": session_id,
+                "antigravity_environment_id": "local",
+                "current_batch_number": 0,
+                "batches": [],
+            }
+            _save_local_session(session)
+            return session
 
     session = {
         "session_id": session_id,
@@ -86,18 +142,26 @@ def save_batch(batch_summary: dict) -> dict:
     if session is None:
         raise RuntimeError("No active session — call create_session() first")
 
-    if not _STUB_MODE:
-        client = _get_client()
-        interaction = client.interactions.create(
-            agent=_AGENT,
-            input=(
-                f"Batch {batch_summary['batch_number']} complete. "
-                f"Results: {json.dumps(batch_summary)}. "
-                "Append this to the session history and confirm."
-            ),
-            previous_interaction_id=session["antigravity_environment_id"],
-        )
-        session["antigravity_environment_id"] = interaction.id
+    env_id = session.get("antigravity_environment_id")
+    if not _STUB_MODE and env_id and env_id != "local":
+        try:
+            client = _get_client()
+            interaction = _create_interaction_with_retry(
+                client,
+                agent=_AGENT,
+                input=(
+                    f"Batch {batch_summary['batch_number']} complete. "
+                    f"Results: {json.dumps(batch_summary)}. "
+                    "Append this to the session history and confirm."
+                ),
+                previous_interaction_id=env_id,
+            )
+            session["antigravity_environment_id"] = interaction.id
+        except Exception as exc:  # noqa: BLE001 — batch must still persist locally
+            print(
+                f"[persistence] Antigravity batch save failed ({exc}); "
+                "persisting batch locally only."
+            )
 
     session["current_batch_number"] = batch_summary["batch_number"]
     session["batches"].append(batch_summary)

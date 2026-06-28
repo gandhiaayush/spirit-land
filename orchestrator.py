@@ -256,7 +256,7 @@ async def run_loop(
                     await asyncio.sleep(0.18)  # stagger so tiles appear one-by-one
                 else:
                     # throttle real Gemini calls under the per-minute free-tier limit
-                    await asyncio.sleep(float(os.environ.get("SUBSTRATA_REAL_DELAY", "4")))
+                    await asyncio.sleep(float(os.environ.get("SUBSTRATA_REAL_DELAY", "0")))
 
             # 3. Score against ground truth
             await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
