@@ -64,8 +64,13 @@ def get_credentials():
         )
 
     # Fall back to gcloud user token (works after `gcloud auth login`)
-    result = subprocess.run(
-        ["gcloud", "auth", "print-access-token"],
-        capture_output=True, text=True, check=True,
-    )
-    return Credentials(token=result.stdout.strip())
+    try:
+        result = subprocess.run(
+            ["gcloud", "auth", "print-access-token"],
+            capture_output=True, text=True, check=True,
+        )
+        return Credentials(token=result.stdout.strip())
+    except Exception:
+        # No gcloud — return None so ee.Initialize() uses the credentials stored by
+        # `earthengine authenticate` (no Google Cloud SDK required).
+        return None
