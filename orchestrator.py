@@ -221,14 +221,14 @@ async def run_loop(
             await _broadcast({"type": "step", "step": "retrieving", "batch_number": batch_num})
             tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
             batch_context = _build_batch_context(batch_num, tile_paths, session)
-            heuristics = get_relevant_heuristics(batch_context, top_k=5)
+            heuristics = await asyncio.to_thread(get_relevant_heuristics, batch_context, 5)
 
             # 2. Classify tiles — stream one tile at a time so each appears in the
             #    carousel the instant it is classified (not all at once after the batch).
             await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
             predictions = []
             for i, path in enumerate(tile_paths):
-                pred = classify_batch([path], heuristics)[0]
+                pred = (await asyncio.to_thread(classify_batch, [path], heuristics))[0]
                 # attach a servable image_url so the dashboard renders the real tile
                 try:
                     import realdata, math as _math
@@ -256,11 +256,11 @@ async def run_loop(
 
             # 3. Score against ground truth
             await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
-            scores = score_batch(predictions)
+            scores = await asyncio.to_thread(score_batch, predictions)
 
             # 4. Update graph with new error patterns / heuristics
             await _broadcast({"type": "step", "step": "extracting", "batch_number": batch_num})
-            new_heuristic_ids = update_graph(predictions)
+            new_heuristic_ids = await asyncio.to_thread(update_graph, predictions)
 
             # 5. Build batch summary (matches Session/Run Record schema)
             await _broadcast({"type": "step", "step": "storing", "batch_number": batch_num})
@@ -274,7 +274,7 @@ async def run_loop(
             }
 
             # 6. Persist to Antigravity
-            session = persistence.save_batch(batch_summary)
+            session = await asyncio.to_thread(persistence.save_batch, batch_summary)
 
             # 7. Broadcast to SSE subscribers
             await _broadcast({"type": "batch_complete", "batch": batch_summary, "session": session})
