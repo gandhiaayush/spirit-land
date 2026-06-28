@@ -28,9 +28,10 @@ function labelText(label: string): string {
 // ── Component ────────────────────────────────────────────────────────────────
 interface Props {
   tiles: TileRecord[];
+  running?: boolean;
 }
 
-export default function SegmentationGrid({ tiles }: Props) {
+export default function SegmentationGrid({ tiles, running = false }: Props) {
   // Accumulate latest tile per (row, col); latest in array wins.
   const { cells, cols, correct, total } = useMemo(() => {
     const map = new Map<string, TileRecord>();
@@ -65,7 +66,7 @@ export default function SegmentationGrid({ tiles }: Props) {
 
   if (total === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center py-24 px-6 text-center">
         <div className="w-12 h-12 border border-slate-200 flex items-center justify-center mb-5 bg-slate-50">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="7" />
@@ -76,14 +77,17 @@ export default function SegmentationGrid({ tiles }: Props) {
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-2">Segmentation</h2>
         <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-          Live land-cover segmentation of the satellite scene. Start a run to populate the grid — each cell is a classified Sentinel-2 patch, tinted by its predicted Dynamic World class.
+          Live land-cover segmentation of the satellite scene. Each cell is a classified Sentinel-2 patch, tinted by its predicted Dynamic World class.
+        </p>
+        <p className="text-sm text-slate-500 font-medium mt-5">
+          {running ? "Segmenting live satellite scene…" : "Press Start to segment a live satellite scene"}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div className="flex-1 p-6">
       {/* ── Header: live accuracy ─────────────────────────────────────────── */}
       <div className="flex items-end justify-between mb-5">
         <div>
@@ -99,9 +103,9 @@ export default function SegmentationGrid({ tiles }: Props) {
         </div>
       </div>
 
-      {/* ── Grid ──────────────────────────────────────────────────────────── */}
+      {/* ── Grid (hero scene) ─────────────────────────────────────────────── */}
       <div
-        className="grid gap-1 mb-6"
+        className="grid gap-1 mb-6 mx-auto w-full max-w-3xl"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {orderedCells.map((tile) => {

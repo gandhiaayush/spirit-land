@@ -23,8 +23,8 @@ export default function Home() {
   // Accumulated tiles for the Segmentation view (persist across batches)
   const [segTiles, setSegTiles] = useState<TileRecord[]>([]);
 
-  // Active main-content tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "segmentation" | "graph">("dashboard");
+  // Active main-content tab — Segmentation is the hero view, default to it.
+  const [activeTab, setActiveTab] = useState<"dashboard" | "segmentation" | "graph">("segmentation");
 
   // Run controls
   const [numBatches, setNumBatches] = useState(5);
@@ -307,8 +307,8 @@ export default function Home() {
         {/* ── Tab navigation ──────────────────────────────────────────────── */}
         <div className="flex items-stretch border-b border-slate-200">
           {([
-            { id: "dashboard", label: "Dashboard" },
             { id: "segmentation", label: "Segmentation" },
+            { id: "dashboard", label: "Dashboard" },
             { id: "graph", label: "Graph" },
           ] as const).map((tab) => (
             <button
@@ -325,9 +325,11 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ── Segmentation tab ────────────────────────────────────────────── */}
+        {/* ── Segmentation tab (hero view) ────────────────────────────────── */}
         {activeTab === "segmentation" && (
-          <SegmentationGrid tiles={segTiles} />
+          <div className="min-h-[70vh] flex flex-col">
+            <SegmentationGrid tiles={segTiles} running={running} />
+          </div>
         )}
 
         {/* ── Graph tab ───────────────────────────────────────────────────── */}
