@@ -57,19 +57,18 @@ def ensure_labels() -> None:
 
 
 def demo_batch(batch_number: int, batch_size: int) -> list[str]:
-    """One diverse batch: a shuffled mix spanning ALL classes, rotating which images appear
-    each batch so consecutive rounds see fresh tiles across the full land-cover spectrum."""
+    """A fixed, diverse, balanced sample spanning ALL classes — the SAME mix every batch, so
+    the only thing changing round to round is the accumulated memory. That isolates memory's
+    effect: the accuracy climb is the lesson, not luck of the draw."""
     import random
     ensure_labels()
+    classes = list(EUROSAT_TO_DW)
+    per = max(1, batch_size // len(classes)) + 1
     pool: list[str] = []
-    for eurosat in EUROSAT_TO_DW:
+    for eurosat in classes:
         imgs = _images(eurosat)
-        if not imgs:
-            continue
-        k = (batch_number - 1) % len(imgs)         # rotate the starting image per batch
-        rotated = imgs[k:] + imgs[:k]
-        pool.extend(str(p) for p in rotated)
-    random.Random(batch_number).shuffle(pool)      # deterministic-but-varied per batch
+        pool.extend(str(p) for p in imgs[:per])
+    random.Random(42).shuffle(pool)                # fixed seed -> identical diverse set each batch
     return pool[:batch_size]
 
 
