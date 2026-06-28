@@ -628,6 +628,37 @@ def suggest_focus_classes(top_n: int = 3) -> list[str]:
     return sorted(mass, key=lambda c: mass[c], reverse=True)[:top_n]
 
 
+_DEMO_PAIRS = [
+    ("trees", "shrub_and_scrub"), ("shrub_and_scrub", "grass"), ("grass", "crops"),
+    ("crops", "trees"), ("water", "flooded_vegetation"),
+]
+
+
+def demo_grow(batch_number: int) -> list[str]:
+    """No-API graph growth for the demo's Memory-Graph view: deterministically add one
+    ErrorPattern + one Heuristic (filed at the LCA, with edges) per batch so the graph visibly
+    grows without any Gemini calls. Used only in STUB_MODE; real mode grows via update_graph."""
+    t, p = _DEMO_PAIRS[(batch_number - 1) % len(_DEMO_PAIRS)]
+    err_id = f"err_demo_{batch_number}"
+    if err_id not in _G:
+        _G.add_node(err_id, type="error_pattern", confusion_pair=[t, p],
+                    description=f"{t} confused with {p}", frequency=float(3 + batch_number),
+                    supporting_evidence_ids=[], created_at=_now(), last_updated=_now())
+    lca = _lca(t, p)
+    heur_id = f"heur_demo_{batch_number}"
+    if heur_id not in _G:
+        _G.add_node(heur_id, type="heuristic",
+                    text=f"Tell {t} apart from {p} by canopy height and texture.",
+                    applies_to_class=lca, applies_to_confusion_pairs=[[t, p]],
+                    derived_from_error_nodes=[err_id], confidence_weight=1.0,
+                    times_applied=batch_number, times_helped=max(0, batch_number - 1),
+                    excluded_classes=[], created_at=_now())
+        _G.add_edge(heur_id, err_id, relation="derived_from")
+        if lca in _G:
+            _G.add_edge(heur_id, lca, relation="applies_to_class")
+    return [heur_id]
+
+
 def reset_graph() -> None:
     """Wipe learned memory and re-seed the taxonomy (used between ablation arms / tests).
     NOTE: this deliberately does NOT change the active arm — call set_active_arm() yourself

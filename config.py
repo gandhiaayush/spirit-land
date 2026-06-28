@@ -71,6 +71,9 @@ def get_credentials():
         )
         return Credentials(token=result.stdout.strip())
     except Exception:
-        # No gcloud — return None so ee.Initialize() uses the credentials stored by
-        # `earthengine authenticate` (no Google Cloud SDK required).
-        return None
+        # No gcloud — use the credentials stored by `earthengine authenticate`.
+        try:
+            import ee
+            return ee.data.get_persistent_credentials()
+        except Exception:
+            return None
