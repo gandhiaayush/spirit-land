@@ -56,13 +56,18 @@ def ensure_labels() -> None:
                 meta.write_text(json.dumps({"true_label": dw}))
 
 
+# Confusable vegetation cluster — all green & easily mixed up (trees/shrub/grass/crops), so
+# Gemini starts low and the memory has real room to climb. The demo's money shot.
+_VEG_CLUSTER = ["forest", "shrubland", "pasture", "annual_crop", "permanent_crop"]
+
+
 def demo_batch(batch_number: int, batch_size: int) -> list[str]:
-    """A fixed, diverse, balanced sample spanning ALL classes — the SAME mix every batch, so
-    the only thing changing round to round is the accumulated memory. That isolates memory's
-    effect: the accuracy climb is the lesson, not luck of the draw."""
+    """A fixed, balanced sample over the confusable vegetation cluster — the SAME mix every
+    batch, so the only thing changing round to round is the accumulated memory. Low baseline +
+    headroom = a clean, visible accuracy climb."""
     import random
     ensure_labels()
-    classes = list(EUROSAT_TO_DW)
+    classes = _VEG_CLUSTER
     per = max(1, batch_size // len(classes)) + 1
     pool: list[str] = []
     for eurosat in classes:
