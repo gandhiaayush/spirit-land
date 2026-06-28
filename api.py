@@ -12,8 +12,9 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, Response
+from fastapi import BackgroundTasks, FastAPI, File, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -59,6 +60,37 @@ async def start_run(
         orchestrator.run_loop, num_batches, batch_size, dataset_dir
     )
     return {"status": "started", "num_batches": num_batches, "batch_size": batch_size}
+
+
+@app.post("/upload")
+async def upload_dataset(files: list[UploadFile] = File(...)):
+    """
+    Stage uploaded image files into a fresh data/uploads/upload_<n>/ directory so
+    the existing run loop can classify them (point /run's dataset_dir at the result).
+
+    Only .jpg/.jpeg/.png files are saved; others are skipped. Uploaded images have
+    no ground-truth labels, so scoring/true_label will be "unknown" (acceptable for v1).
+    """
+    uploads_root = Path("data/uploads")
+    uploads_root.mkdir(parents=True, exist_ok=True)
+
+    # Derive the next dir from the count of existing upload_* subdirs.
+    existing = [d for d in uploads_root.glob("upload_*") if d.is_dir()]
+    next_n = len(existing) + 1
+    dataset_dir = uploads_root / f"upload_{next_n:03d}"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+
+    allowed = {".jpg", ".jpeg", ".png"}
+    count = 0
+    for upload in files:
+        filename = upload.filename or ""
+        if Path(filename).suffix.lower() not in allowed:
+            continue
+        contents = await upload.read()
+        (dataset_dir / Path(filename).name).write_bytes(contents)
+        count += 1
+
+    return {"dataset_dir": str(dataset_dir), "count": count}
 
 
 @app.delete("/session")

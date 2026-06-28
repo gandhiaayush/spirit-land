@@ -7,3 +7,4 @@ session.json
 frontend/node_modules/
 frontend/.next/
 data/
+frontend/public/tiles/**/*.json

@@ -123,8 +123,12 @@ def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> li
                      + sorted(dataset_path.rglob("*.png")))
         start = (batch_number - 1) * batch_size
         return [str(p) for p in all_tiles[start: start + batch_size]]
-    # No-API v1 path: synthetic fallback patches written to disk (no Earth Engine; Gemini-key
-    # only). Alternate train/test so consecutive batches present fresh scenes for before/after.
+    # Preferred no-API path: real EuroSAT thumbnails (frontend/public/tiles), mapped to DW and
+    # sequenced for the is_a transfer beat. Servable, so the dashboard shows the real tile.
+    import realdata
+    if realdata.available():
+        return realdata.demo_batch(batch_number, batch_size)
+    # Fallback: synthetic patches on disk (no Earth Engine), alternating train/test.
     import dataset_fallback
     n_per_class = max(1, batch_size // 4)
     split = "train" if batch_number % 2 == 1 else "test"
@@ -144,8 +148,9 @@ def _build_batch_context(batch_num: int, tile_paths: list[str], session: dict) -
       3. a plain "batch N" fallback
     Never raises — any failure falls through to the next strategy.
     """
-    # Strategy 1: ask the classifier to summarize the actual tiles
-    if not STUB_MODE:
+    # Strategy 1: ask the classifier to summarize the actual tiles (opt-in — costs an
+    # extra Gemini call per tile; off by default to conserve free-tier quota).
+    if not STUB_MODE and os.environ.get("SUBSTRATA_USE_GEMMA", "false").lower() == "true":
         try:
             import classifier  # type: ignore
             if hasattr(classifier, "gemma_summarize"):
@@ -215,73 +220,91 @@ async def run_loop(
     start_batch = session["current_batch_number"] + 1
 
     for batch_num in range(start_batch, start_batch + num_batches):
-        await _broadcast({"type": "batch_start", "batch_number": batch_num})
+        try:
+            await _broadcast({"type": "batch_start", "batch_number": batch_num})
 
-        # 1. Retrieve relevant heuristics from graph memory
-        #    (load tiles first so the enriched context can be built from real data)
-        await _broadcast({"type": "step", "step": "retrieving", "batch_number": batch_num})
-        tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
-        batch_context = _build_batch_context(batch_num, tile_paths, session)
-        heuristics = get_relevant_heuristics(batch_context, top_k=5)
+            # 1. Retrieve relevant heuristics from graph memory
+            #    (load tiles first so the enriched context can be built from real data)
+            await _broadcast({"type": "step", "step": "retrieving", "batch_number": batch_num})
+            tile_paths = _load_tile_paths(batch_size, batch_num, dataset_dir)
+            batch_context = _build_batch_context(batch_num, tile_paths, session)
+            heuristics = get_relevant_heuristics(batch_context, top_k=5)
 
-        # 2. Classify tiles
-        await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
-        predictions = classify_batch(tile_paths, heuristics)
+            # 2. Classify tiles — stream one tile at a time so each appears in the
+            #    carousel the instant it is classified (not all at once after the batch).
+            await _broadcast({"type": "step", "step": "classifying", "batch_number": batch_num})
+            predictions = []
+            for i, path in enumerate(tile_paths):
+                pred = classify_batch([path], heuristics)[0]
+                # attach a servable image_url so the dashboard renders the real tile
+                try:
+                    import realdata
+                    _url = realdata.to_image_url(path)
+                    if _url:
+                        pred["image_url"] = _url
+                except Exception:
+                    pass
+                predictions.append(pred)
+                await _broadcast({
+                    "type": "tile_classified",
+                    "tile": pred,
+                    "batch_number": batch_num,
+                    "tile_index": i,
+                    "total_tiles": len(tile_paths),
+                })
+                if STUB_MODE:
+                    await asyncio.sleep(0.18)  # stagger so tiles appear one-by-one
+                else:
+                    # throttle real Gemini calls under the per-minute free-tier limit
+                    await asyncio.sleep(float(os.environ.get("SUBSTRATA_REAL_DELAY", "4")))
 
-        # Emit per-tile events for live frontend display
-        for i, pred in enumerate(predictions):
-            await _broadcast({
-                "type": "tile_classified",
-                "tile": pred,
+            # 3. Score against ground truth
+            await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
+            scores = score_batch(predictions)
+
+            # 4. Update graph with new error patterns / heuristics
+            await _broadcast({"type": "step", "step": "extracting", "batch_number": batch_num})
+            new_heuristic_ids = update_graph(predictions)
+
+            # 5. Build batch summary (matches Session/Run Record schema)
+            await _broadcast({"type": "step", "step": "storing", "batch_number": batch_num})
+            active_ids = [h["node_id"] for h in heuristics] + new_heuristic_ids
+            batch_summary = {
                 "batch_number": batch_num,
-                "tile_index": i,
-                "total_tiles": len(predictions),
-            })
-            if STUB_MODE:
-                await asyncio.sleep(0.18)  # stagger so tiles appear one-by-one
+                "overall_accuracy": scores["overall_accuracy"],
+                "per_confusion_pair_error_rate": scores["per_confusion_pair_error_rate"],
+                "active_heuristic_ids": active_ids,
+                "tile_count": len(tile_paths),
+            }
 
-        # 3. Score against ground truth
-        await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
-        scores = score_batch(predictions)
+            # 6. Persist to Antigravity
+            session = persistence.save_batch(batch_summary)
 
-        # 4. Update graph with new error patterns / heuristics
-        await _broadcast({"type": "step", "step": "extracting", "batch_number": batch_num})
-        new_heuristic_ids = update_graph(predictions)
+            # 7. Broadcast to SSE subscribers
+            await _broadcast({"type": "batch_complete", "batch": batch_summary, "session": session})
 
-        # 5. Build batch summary (matches Session/Run Record schema)
-        await _broadcast({"type": "step", "step": "storing", "batch_number": batch_num})
-        active_ids = [h["node_id"] for h in heuristics] + new_heuristic_ids
-        batch_summary = {
-            "batch_number": batch_num,
-            "overall_accuracy": scores["overall_accuracy"],
-            "per_confusion_pair_error_rate": scores["per_confusion_pair_error_rate"],
-            "active_heuristic_ids": active_ids,
-            "tile_count": len(tile_paths),
-        }
+            # 8. Emit an additive active-learning signal (new SSE event type the
+            #    frozen dashboard ignores harmlessly). The focus suggester may not
+            #    exist yet, so probe defensively and never let it break the loop.
+            focus = []
+            if not STUB_MODE:
+                try:
+                    import memory_graph  # type: ignore
+                    fn = getattr(memory_graph, "suggest_focus_classes", None)
+                    if fn:
+                        focus = fn(top_n=3)
+                except Exception:
+                    focus = []
+            if focus:
+                await _broadcast({"type": "next_focus", "batch_number": batch_num, "classes": focus})
 
-        # 6. Persist to Antigravity
-        session = persistence.save_batch(batch_summary)
-
-        # 7. Broadcast to SSE subscribers
-        await _broadcast({"type": "batch_complete", "batch": batch_summary, "session": session})
-
-        # 8. Emit an additive active-learning signal (new SSE event type the
-        #    frozen dashboard ignores harmlessly). The focus suggester may not
-        #    exist yet, so probe defensively and never let it break the loop.
-        focus = []
-        if not STUB_MODE:
-            try:
-                import memory_graph  # type: ignore
-                fn = getattr(memory_graph, "suggest_focus_classes", None)
-                if fn:
-                    focus = fn(top_n=3)
-            except Exception:
-                focus = []
-        if focus:
-            await _broadcast({"type": "next_focus", "batch_number": batch_num, "classes": focus})
-
-        # small yield so FastAPI can flush SSE events
-        await asyncio.sleep(0)
+            # small yield so FastAPI can flush SSE events
+            await asyncio.sleep(0)
+        except Exception as e:
+            # A failed batch (e.g. a Gemini 429) must not hang the UI: surface
+            # the error and end the run cleanly instead of stalling.
+            await _broadcast({"type": "error", "batch_number": batch_num, "message": str(e)})
+            break
 
     await _broadcast({"type": "run_complete", "session": session})
 

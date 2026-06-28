@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import ConfusionBreakdown from "@/components/ConfusionBreakdown";
 import HeuristicsList from "@/components/HeuristicsList";
 import TileCarousel from "@/components/TileCarousel";
@@ -22,6 +21,11 @@ export default function Home() {
   // Run controls
   const [numBatches, setNumBatches] = useState(5);
   const [batchSize, setBatchSize]   = useState(20);
+
+  // Dataset source
+  const [datasetMode, setDatasetMode] = useState<"demo" | "upload">("demo");
+  const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
 
@@ -86,6 +90,28 @@ export default function Home() {
   }, []);
 
   const handleStart = useCallback(async () => {
+    setUploadError(null);
+
+    // If using uploaded images, push them first and resolve a dataset_dir.
+    let datasetDir: string | null = null;
+    if (datasetMode === "upload") {
+      if (!uploadFiles || uploadFiles.length === 0) {
+        setUploadError("Select at least one image to upload.");
+        return;
+      }
+      try {
+        const form = new FormData();
+        Array.from(uploadFiles).forEach((f) => form.append("files", f));
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+        const data: { dataset_dir: string } = await res.json();
+        datasetDir = data.dataset_dir;
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "Upload failed.");
+        return;
+      }
+    }
+
     setRunning(true);
     setNextFocus([]);
     // Switch the ablation arm before the run: Memory On → reflective, Memory Off → cold.
@@ -95,8 +121,10 @@ export default function Home() {
       // non-blocking: proceed with the run even if arm switch fails
     }
     connectSSE();
-    await fetch(`/api/run?num_batches=${numBatches}&batch_size=${batchSize}`, { method: "POST" });
-  }, [connectSSE, numBatches, batchSize, memoryEnabled]);
+    let runUrl = `/api/run?num_batches=${numBatches}&batch_size=${batchSize}`;
+    if (datasetDir) runUrl += `&dataset_dir=${encodeURIComponent(datasetDir)}`;
+    await fetch(runUrl, { method: "POST" });
+  }, [connectSSE, numBatches, batchSize, memoryEnabled, datasetMode, uploadFiles]);
 
   const handleClear = useCallback(async () => {
     await fetch("/api/session", { method: "DELETE" });
@@ -132,43 +160,12 @@ export default function Home() {
             <span className="text-sm font-bold tracking-tight text-slate-900">SubStrata</span>
           </div>
 
-          {/* Memory toggle */}
-          <div className="flex items-stretch border-r border-slate-200">
-            <button
-              onClick={() => setMemoryEnabled(true)}
-              className={`px-4 text-xs font-semibold tracking-wide transition-colors ${
-                memoryEnabled
-                  ? "bg-emerald-600 text-white"
-                  : "bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Memory On
-            </button>
-            <button
-              onClick={() => setMemoryEnabled(false)}
-              className={`px-4 text-xs font-semibold tracking-wide border-l border-slate-200 transition-colors ${
-                !memoryEnabled
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Memory Off
-            </button>
-          </div>
-
-          {/* Badges */}
-          <div className="hidden md:flex items-center gap-0 border-r border-slate-200">
-            <span className="badge bg-blue-50 text-blue-600 border-r border-blue-100 px-3 py-1.5 text-[10px]">Gemini 3.5</span>
-            <span className="badge bg-violet-50 text-violet-600 border-r border-violet-100 px-3 py-1.5 text-[10px]">Antigravity</span>
-            <span className="badge bg-slate-50 text-slate-500 px-3 py-1.5 text-[10px]">EuroSAT</span>
-          </div>
-
           {/* Status */}
           <div className="flex flex-col items-end justify-center px-4 ml-auto gap-0.5">
             {running ? (
               <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
                 <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse" style={{ borderRadius: "0 !important" }} />
-                Batch {currentBatch ?? "…"} — {currentStep ? STEP_LABELS[currentStep] : "running"}
+                {currentStep ? `${STEP_LABELS[currentStep]}…` : "Running…"}
               </div>
             ) : session ? (
               <span className="text-[11px] text-slate-400 font-mono">{session.current_batch_number} batch{session.current_batch_number !== 1 ? "es" : ""}</span>
@@ -178,6 +175,26 @@ export default function Home() {
                 Next batch targeting: {nextFocus.map((c) => c.replace(/_/g, " ")).join(", ")}
               </span>
             )}
+          </div>
+
+          {/* Memory toggle — Apple-style switch, far right */}
+          <div className="flex items-center gap-2.5 px-5 border-l border-slate-200">
+            <span className="text-xs font-semibold tracking-wide text-slate-500">Memory</span>
+            <button
+              role="switch"
+              aria-checked={memoryEnabled}
+              aria-label="Toggle memory"
+              onClick={() => setMemoryEnabled((v) => !v)}
+              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 ${
+                memoryEnabled ? "bg-emerald-600" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                  memoryEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
         </div>
       </header>
@@ -206,6 +223,35 @@ export default function Home() {
                 className="w-20 bg-white border border-slate-200 px-2 py-1 text-slate-900 text-sm focus:outline-none focus:border-emerald-400 disabled:opacity-40"
               />
             </div>
+          </div>
+
+          {/* Dataset source */}
+          <div className="flex flex-col gap-0.5 px-5 py-3 border-r border-slate-200">
+            <label className="label">Dataset</label>
+            <select
+              value={datasetMode}
+              onChange={(e) => { setDatasetMode(e.target.value as "demo" | "upload"); setUploadError(null); }}
+              disabled={running}
+              className="bg-white border border-slate-200 px-2 py-1 text-slate-900 text-sm focus:outline-none focus:border-emerald-400 disabled:opacity-40"
+            >
+              <option value="demo">Demo data</option>
+              <option value="upload">Upload files</option>
+            </select>
+            {datasetMode === "upload" && (
+              <div className="flex flex-col gap-0.5 mt-1">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  disabled={running}
+                  onChange={(e) => { setUploadFiles(e.target.files); setUploadError(null); }}
+                  className="text-[11px] text-slate-500 file:mr-2 file:border file:border-slate-200 file:bg-white file:px-2 file:py-0.5 file:text-[11px] file:text-slate-600 hover:file:bg-slate-50 disabled:opacity-40"
+                />
+                {uploadError && (
+                  <span className="text-[11px] text-red-500">{uploadError}</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 px-5 py-3">
@@ -291,11 +337,6 @@ export default function Home() {
             </p>
           </div>
         )}
-
-        {/* ── Architecture ─────────────────────────────────────────────────── */}
-        <div className="border-t border-slate-200">
-          <ArchitectureDiagram />
-        </div>
 
         {/* Footer */}
         <div className="border-t border-slate-200 px-6 py-4 flex items-center justify-between text-[11px] text-slate-300">

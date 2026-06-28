@@ -1,10 +1,15 @@
 import os
 import subprocess
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 GCP_PROJECT = os.environ.get("GCP_PROJECT", "ai-hack-sf26sfo-7095")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+# Accept either env-var name (memory_graph.py / persistence.py use the same fallback).
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-26b-a4b-it")  # available via same API key
 
