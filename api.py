@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, File, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 import orchestrator
 import persistence
@@ -28,6 +29,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="SubStrata API", lifespan=lifespan)
+Path("data/patches").mkdir(parents=True, exist_ok=True)
+app.mount("/patches", StaticFiles(directory="data/patches"), name="patches")
 
 app.add_middleware(
     CORSMiddleware,

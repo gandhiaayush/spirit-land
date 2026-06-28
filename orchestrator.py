@@ -23,7 +23,7 @@ from typing import AsyncGenerator
 import persistence
 
 # ── toggle stub mode until E1/E2 are ready ───────────────────────────────────
-STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "true").lower() == "true"
+STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "false").lower() == "true"
 
 # ── SSE subscriber queues (filled by run_loop, drained by api.py) ─────────────
 _subscribers: list[asyncio.Queue] = []
@@ -123,16 +123,11 @@ def _load_tile_paths(batch_size: int, batch_number: int, dataset_dir: str) -> li
                      + sorted(dataset_path.rglob("*.png")))
         start = (batch_number - 1) * batch_size
         return [str(p) for p in all_tiles[start: start + batch_size]]
-    # Preferred no-API path: real EuroSAT thumbnails (frontend/public/tiles), mapped to DW and
-    # sequenced for the is_a transfer beat. Servable, so the dashboard shows the real tile.
-    import realdata
-    if realdata.available():
-        return realdata.demo_batch(batch_number, batch_size)
-    # Fallback: synthetic patches on disk (no Earth Engine), alternating train/test.
-    import dataset_fallback
-    n_per_class = max(1, batch_size // 4)
-    split = "train" if batch_number % 2 == 1 else "test"
-    patches = dataset_fallback.get_demo_batch(n_per_class=n_per_class, split=split)
+    # Real geography: Sentinel-2 RGB + Dynamic World majority labels, tiled into an N×N grid
+    # via Earth Engine (a scene per batch). The whole grid is the segmentation surface.
+    import dataset, math
+    grid = max(2, round(math.sqrt(batch_size)))
+    patches = dataset.DynamicWorldDataset().fetch_scene(grid_size=grid)
     return [p.image_path for p in patches]
 
 
@@ -238,10 +233,13 @@ async def run_loop(
                 pred = classify_batch([path], heuristics)[0]
                 # attach a servable image_url so the dashboard renders the real tile
                 try:
-                    import realdata
-                    _url = realdata.to_image_url(path)
-                    if _url:
-                        pred["image_url"] = _url
+                    import re as _re
+                    stem = Path(path).stem
+                    pred["image_url"] = f"/api/patches/{stem}.png"
+                    _m = _re.search(r"r(\d+)c(\d+)", stem)
+                    if _m:
+                        pred["grid_row"] = int(_m.group(1))
+                        pred["grid_col"] = int(_m.group(2))
                 except Exception:
                     pass
                 predictions.append(pred)

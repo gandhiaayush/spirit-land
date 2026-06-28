@@ -19,7 +19,7 @@ load_dotenv()
 
 _SESSION_FILE = Path(__file__).parent / "session.json"
 _AGENT = "antigravity-preview-05-2026"
-_STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "true").lower() == "true"
+_STUB_MODE = os.environ.get("SUBSTRATA_STUB_MODE", "false").lower() == "true"
 
 _client = None
 
