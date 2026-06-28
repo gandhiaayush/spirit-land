@@ -57,17 +57,20 @@ def ensure_labels() -> None:
 
 
 def demo_batch(batch_number: int, batch_size: int) -> list[str]:
-    """Disk paths for one batch, drawn from the staged plan (cycles the ~10 images/class)."""
+    """One diverse batch: a shuffled mix spanning ALL classes, rotating which images appear
+    each batch so consecutive rounds see fresh tiles across the full land-cover spectrum."""
+    import random
     ensure_labels()
-    plan = _BATCH_PLAN[min(batch_number, len(_BATCH_PLAN)) - 1]
-    per = max(1, batch_size // len(plan))
-    paths: list[str] = []
-    for eurosat in plan:
+    pool: list[str] = []
+    for eurosat in EUROSAT_TO_DW:
         imgs = _images(eurosat)
-        for i in range(per):
-            if imgs:
-                paths.append(str(imgs[i % len(imgs)]))
-    return paths
+        if not imgs:
+            continue
+        k = (batch_number - 1) % len(imgs)         # rotate the starting image per batch
+        rotated = imgs[k:] + imgs[:k]
+        pool.extend(str(p) for p in rotated)
+    random.Random(batch_number).shuffle(pool)      # deterministic-but-varied per batch
+    return pool[:batch_size]
 
 
 def to_image_url(path: str) -> str | None:

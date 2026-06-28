@@ -5,6 +5,7 @@ import ConfusionBreakdown from "@/components/ConfusionBreakdown";
 import HeuristicsList from "@/components/HeuristicsList";
 import TileCarousel from "@/components/TileCarousel";
 import SegmentationGrid from "@/components/SegmentationGrid";
+import MemoryGraph from "@/components/MemoryGraph";
 import type { BatchRecord, PipelineStep, SSEEvent, Session, TileRecord } from "@/types";
 
 export default function Home() {
@@ -23,7 +24,7 @@ export default function Home() {
   const [segTiles, setSegTiles] = useState<TileRecord[]>([]);
 
   // Active main-content tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "segmentation">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "segmentation" | "graph">("dashboard");
 
   // Run controls
   const [numBatches, setNumBatches] = useState(5);
@@ -308,6 +309,7 @@ export default function Home() {
           {([
             { id: "dashboard", label: "Dashboard" },
             { id: "segmentation", label: "Segmentation" },
+            { id: "graph", label: "Graph" },
           ] as const).map((tab) => (
             <button
               key={tab.id}
@@ -326,6 +328,11 @@ export default function Home() {
         {/* ── Segmentation tab ────────────────────────────────────────────── */}
         {activeTab === "segmentation" && (
           <SegmentationGrid tiles={segTiles} />
+        )}
+
+        {/* ── Graph tab ───────────────────────────────────────────────────── */}
+        {activeTab === "graph" && (
+          <MemoryGraph />
         )}
 
         {/* ── Dashboard tab ───────────────────────────────────────────────── */}

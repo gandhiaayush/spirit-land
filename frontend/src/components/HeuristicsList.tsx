@@ -1,23 +1,48 @@
 "use client";
 
-import type { BatchRecord } from "@/types";
+import { useEffect, useMemo, useState } from "react";
+import type { BatchRecord, GraphNode, GraphResponse } from "@/types";
 
 interface Props {
   batches: BatchRecord[];
 }
 
 export default function HeuristicsList({ batches }: Props) {
-  const seen = new Set<string>();
-  const entries: { id: string; addedBatch: number }[] = [];
+  // Map of heuristic node id -> node, sourced from the live memory graph.
+  const [heuristicMap, setHeuristicMap] = useState<Record<string, GraphNode>>({});
 
-  for (const b of batches) {
-    for (const id of b.active_heuristic_ids) {
-      if (!seen.has(id)) {
-        seen.add(id);
-        entries.push({ id, addedBatch: b.batch_number });
+  // Re-fetch the graph whenever a new batch arrives so fresh heuristics appear.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/graph")
+      .then((r) => (r.ok ? (r.json() as Promise<GraphResponse>) : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const map: Record<string, GraphNode> = {};
+        for (const node of data.nodes) {
+          if (node.type === "heuristic") map[node.id] = node;
+        }
+        setHeuristicMap(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [batches.length]);
+
+  const entries = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { id: string; addedBatch: number }[] = [];
+    for (const b of batches) {
+      for (const id of b.active_heuristic_ids) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          out.push({ id, addedBatch: b.batch_number });
+        }
       }
     }
-  }
+    return out;
+  }, [batches]);
 
   const total = entries.length;
 
@@ -46,18 +71,39 @@ export default function HeuristicsList({ batches }: Props) {
         </div>
       ) : (
         <ul className="space-y-2 overflow-y-auto max-h-64 pr-1">
-          {entries.map(({ id, addedBatch }) => (
-            <li
-              key={id}
-              className="group flex items-start gap-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2.5 transition-all duration-150"
-            >
-              <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-700 font-mono leading-relaxed truncate">{id}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Added in batch {addedBatch}</p>
-              </div>
-            </li>
-          ))}
+          {entries.map(({ id, addedBatch }) => {
+            const node = heuristicMap[id];
+            const text = node?.text ?? id;
+            const meta: string[] = [];
+            if (node?.applies_to_class) {
+              meta.push(node.applies_to_class.replace(/_/g, " "));
+            }
+            if (node?.confidence_weight !== undefined) {
+              meta.push(`weight ${node.confidence_weight.toFixed(2)}`);
+            }
+
+            return (
+              <li
+                key={id}
+                className="group flex items-start gap-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2.5 transition-all duration-150"
+              >
+                <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`text-xs text-slate-700 leading-relaxed ${
+                      node?.text ? "" : "font-mono truncate"
+                    }`}
+                  >
+                    {text}
+                  </p>
+                  {meta.length > 0 && (
+                    <p className="text-[10px] text-slate-400 mt-0.5">{meta.join(" · ")}</p>
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-0.5">Added in batch {addedBatch}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

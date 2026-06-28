@@ -21,6 +21,33 @@ export interface TileRecord {
   grid_col?: number;
 }
 
+export type GraphNodeType = "class" | "error_pattern" | "heuristic";
+
+export interface GraphNode {
+  id: string;
+  type: GraphNodeType;
+  text?: string;
+  applies_to_class?: string;
+  applies_to_confusion_pairs?: [string, string][];
+  confusion_pair?: [string, string];
+  frequency?: number;
+  confidence_weight?: number;
+  times_applied?: number;
+  times_helped?: number;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  relation: "is_a" | "applies_to_class" | "derived_from";
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  arm: string;
+}
+
 export interface Session {
   session_id: string;
   antigravity_environment_id: string;
