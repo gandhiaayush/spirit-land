@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TileRecord } from "@/types";
 
 // ── Dynamic World palette ───────────────────────────────────────────────────
@@ -31,13 +31,56 @@ interface Props {
   running?: boolean;
 }
 
+// A locally-applied scientist correction for a single tile.
+interface Override {
+  predicted_label: string;
+  correct: boolean;
+}
+
 export default function SegmentationGrid({ tiles, running = false }: Props) {
+  // Local scientist corrections, keyed by tile_id. These re-tint cells and
+  // clear the error marker without waiting for a fresh stream.
+  const [overrides, setOverrides] = useState<Record<string, Override>>({});
+  // Which cell currently has its "Correct to…" popover open.
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  // Transient "memory updated" confirmation, keyed by cell.
+  const [toastKey, setToastKey] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+  }, []);
+
+  // Apply a scientist correction: persist it, then re-tint the cell locally.
+  async function applyCorrection(tile: TileRecord, corrected: string, cellKey: string) {
+    setOpenKey(null);
+    const params = new URLSearchParams({
+      tile_id: tile.tile_id,
+      corrected_label: corrected,
+      predicted_label: tile.predicted_label,
+    });
+    try {
+      const res = await fetch(`/api/correction?${params.toString()}`, { method: "POST" });
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
+    setOverrides((prev) => ({
+      ...prev,
+      [tile.tile_id]: { predicted_label: corrected, correct: corrected === tile.true_label },
+    }));
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastKey(cellKey);
+    toastTimerRef.current = setTimeout(() => setToastKey(null), 2000);
+  }
+
   // Accumulate latest tile per (row, col); latest in array wins.
   const { cells, cols, correct, total } = useMemo(() => {
     const map = new Map<string, TileRecord>();
     for (const t of tiles) {
       if (t.grid_row == null || t.grid_col == null) continue;
-      map.set(`${t.grid_row}_${t.grid_col}`, t);
+      const o = overrides[t.tile_id];
+      map.set(`${t.grid_row}_${t.grid_col}`, o ? { ...t, predicted_label: o.predicted_label, correct: o.correct } : t);
     }
     const placed = Array.from(map.values());
     const maxCol = placed.reduce((m, t) => Math.max(m, t.grid_col ?? 0), -1);
@@ -48,7 +91,7 @@ export default function SegmentationGrid({ tiles, running = false }: Props) {
       correct: correctCount,
       total: placed.length,
     };
-  }, [tiles]);
+  }, [tiles, overrides]);
 
   // Present classes (in palette order) for the legend.
   const presentClasses = useMemo(() => {
@@ -111,32 +154,88 @@ export default function SegmentationGrid({ tiles, running = false }: Props) {
         {orderedCells.map((tile) => {
           const color = colorFor(tile.predicted_label);
           const isError = !tile.correct;
+          const cellKey = `${tile.grid_row}_${tile.grid_col}`;
+          const isOpen = openKey === cellKey;
+          const showToast = toastKey === cellKey;
           return (
             <div
-              key={`${tile.grid_row}_${tile.grid_col}`}
-              title={`pred: ${tile.predicted_label} | truth: ${tile.true_label}`}
-              className="relative aspect-square overflow-hidden bg-slate-100"
+              key={cellKey}
+              className="group relative aspect-square"
               style={{
                 gridRowStart: (tile.grid_row ?? 0) + 1,
                 gridColumnStart: (tile.grid_col ?? 0) + 1,
-                border: `2px solid ${isError ? "#dc2626" : color}`,
+                zIndex: isOpen ? 30 : undefined,
               }}
             >
-              {tile.image_url && (
-                <img
-                  src={tile.image_url}
-                  alt={tile.predicted_label}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  draggable={false}
-                />
-              )}
-              {/* translucent class tint */}
-              <div className="absolute inset-0" style={{ backgroundColor: color, opacity: 0.42 }} />
-              {/* error marker */}
-              {isError && (
-                <span className="absolute top-0 right-0 z-10 flex h-3.5 w-3.5 items-center justify-center bg-red-600 text-[9px] font-bold leading-none text-white">
-                  ✕
-                </span>
+              {/* clipped tile body: image + tint + markers */}
+              <div
+                title={`pred: ${tile.predicted_label} | truth: ${tile.true_label} — click to correct`}
+                onClick={() => setOpenKey((k) => (k === cellKey ? null : cellKey))}
+                className="absolute inset-0 overflow-hidden bg-slate-100 cursor-pointer"
+                style={{ border: `2px solid ${isError ? "#dc2626" : color}` }}
+              >
+                {tile.image_url && (
+                  <img
+                    src={tile.image_url}
+                    alt={tile.predicted_label}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    draggable={false}
+                  />
+                )}
+                {/* translucent class tint */}
+                <div className="absolute inset-0" style={{ backgroundColor: color, opacity: 0.42 }} />
+                {/* error marker */}
+                {isError && (
+                  <span className="absolute top-0 right-0 z-10 flex h-3.5 w-3.5 items-center justify-center bg-red-600 text-[9px] font-bold leading-none text-white">
+                    ✕
+                  </span>
+                )}
+
+                {/* hover hint: subtle pencil to signal "click to correct" */}
+                {!isOpen && !showToast && (
+                  <span className="pointer-events-none absolute bottom-0 left-0 z-10 flex h-4 w-4 items-center justify-center bg-black/45 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </span>
+                )}
+
+                {/* inline "memory updated" confirmation */}
+                {showToast && (
+                  <span className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center bg-emerald-600/90 px-1 py-0.5 text-[8px] font-semibold leading-none text-white">
+                    ✓ memory updated
+                  </span>
+                )}
+              </div>
+
+              {/* "Correct to…" popover — rendered outside the clipped body */}
+              {isOpen && (
+                <div
+                  className="absolute left-1/2 top-full z-40 mt-1 w-36 -translate-x-1/2 border border-slate-200 bg-white shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="border-b border-slate-100 bg-slate-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                    Correct to…
+                  </p>
+                  <div className="max-h-44 overflow-y-auto py-0.5">
+                    {DW_CLASSES.map((cls) => (
+                      <button
+                        key={cls}
+                        onClick={() => applyCorrection(tile, cls, cellKey)}
+                        className={`flex w-full items-center gap-1.5 px-2 py-1 text-left text-[11px] capitalize transition-colors hover:bg-emerald-50 ${
+                          cls === tile.predicted_label ? "font-semibold text-slate-900" : "text-slate-600"
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 shrink-0 border border-black/10"
+                          style={{ backgroundColor: colorFor(cls) }}
+                        />
+                        {labelText(cls)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           );

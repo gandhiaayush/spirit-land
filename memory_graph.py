@@ -602,6 +602,35 @@ def update_graph(predictions: list[dict]) -> list[str]:
     return new_ids
 
 
+def learn_from_correction(predicted_label: str, corrected_label: str,
+                          evidence_id: str | None = None) -> list[str]:
+    """A domain scientist overrode a prediction. Treat (corrected_label as truth, predicted_label
+    as the error), write an ErrorPattern + a heuristic immediately, and return new heuristic ids.
+
+    Unlike update_graph (which gates on cumulative frequency), a human override is treated as
+    high-confidence ground truth: we reflect at once, no FREQ_GATE wait. The error pattern is
+    upserted regardless of whether the Strategist (Gemini) succeeds."""
+    if not predicted_label or not corrected_label or predicted_label == corrected_label:
+        return []
+
+    pair = (corrected_label, predicted_label)   # (true, predicted) — the scientist is ground truth
+    err_id = _upsert_error_pattern(
+        pair, float(FREQ_GATE_T), [evidence_id] if evidence_id else [])
+
+    lca = _lca(corrected_label, predicted_label)
+    allowed = [lca] + _ancestors(lca)
+    try:
+        lesson = _strategist(
+            corrected_label, predicted_label, allowed,
+            ["A domain scientist manually corrected this label."])
+    except Exception:
+        return []   # Gemini failed — error pattern is still recorded; just no heuristic this time
+
+    node_id, created = _add_or_merge_heuristic(
+        lesson["text"], lesson["applies_to_class"], pair, err_id)
+    return [node_id] if created else []
+
+
 # ── debug / future graph viz ──────────────────────────────────────────────────
 
 def export_graph() -> dict:

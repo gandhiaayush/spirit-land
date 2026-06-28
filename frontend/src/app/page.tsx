@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import AccuracyChart from "@/components/AccuracyChart";
 import ConfusionBreakdown from "@/components/ConfusionBreakdown";
 import HeuristicsList from "@/components/HeuristicsList";
-import TileCarousel from "@/components/TileCarousel";
 import SegmentationGrid from "@/components/SegmentationGrid";
 import MemoryGraph from "@/components/MemoryGraph";
 import type { BatchRecord, PipelineStep, SSEEvent, Session, TileRecord } from "@/types";
@@ -16,7 +16,6 @@ export default function Home() {
   const [currentStep, setCurrentStep]   = useState<PipelineStep | null>(null);
   const [currentBatchTiles, setCurrentBatchTiles] = useState<TileRecord[]>([]);
   const [totalTilesInBatch, setTotalTilesInBatch] = useState(0);
-  const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [nextFocus, setNextFocus] = useState<string[]>([]);
 
@@ -50,6 +49,17 @@ export default function Home() {
       .then((r) => (r.status === 204 ? null : r.json()))
       .then((data: Session | null) => {
         if (data) { setSession(data); setBatches(data.batches ?? []); }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Seed the Segmentation grid with the last run's tiles so the dashboard
+  // shows the previous segmentation immediately instead of the empty state.
+  useEffect(() => {
+    fetch("/api/tiles")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: TileRecord[] | null) => {
+        if (Array.isArray(data) && data.length > 0) setSegTiles(data);
       })
       .catch(() => {});
   }, []);
@@ -126,9 +136,19 @@ export default function Home() {
       }
     }
 
+    // Start = restart: reset the backend session (graph + tiles) and local
+    // state so every run begins fresh from batch 1 with empty memory.
+    try {
+      await fetch("/api/session", { method: "DELETE" });
+    } catch {
+      // non-blocking: proceed even if the reset fails
+    }
+    setSegTiles([]);
+    setBatches([]);
+    setCurrentBatch(null);
+
     setRunning(true);
     setNextFocus([]);
-    setSegTiles([]);
     // Switch the ablation arm before the run: Memory On → reflective, Memory Off → cold.
     try {
       await fetch(`/api/arm?arm=${memoryEnabled ? "reflective" : "cold"}`, { method: "POST" });
@@ -149,13 +169,8 @@ export default function Home() {
     setCurrentStep(null);
     setCurrentBatchTiles([]);
     setTotalTilesInBatch(0);
-    setCorrections({});
     setNextFocus([]);
     setSegTiles([]);
-  }, []);
-
-  const handleCorrection = useCallback((tile: TileRecord, label: string) => {
-    setCorrections((prev) => ({ ...prev, [tile.tile_id]: label }));
   }, []);
 
   const hasTiles = currentBatchTiles.length > 0;
@@ -362,18 +377,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Tile carousel + info + bottom grid ───────────────────────────── */}
-        {(hasTiles || running) && (
-          <TileCarousel
-            tiles={currentBatchTiles}
-            batchNumber={currentBatch}
-            totalTiles={totalTilesInBatch}
-            batches={batches}
-            running={running}
-            memoryEnabled={memoryEnabled}
-            onCorrection={handleCorrection}
-            corrections={corrections}
-          />
+        {/* ── Accuracy over batches ────────────────────────────────────────── */}
+        {batches.length > 0 && (
+          <div className="border-t border-slate-200 p-5 max-w-lg">
+            <AccuracyChart batches={batches} />
+          </div>
         )}
 
         {/* ── Memory-gated: confusion + heuristics ─────────────────────────── */}

@@ -16,3 +16,4 @@ key.json
 data/patches/
 *.png
 CLAUDE.local.md
+.gstack/

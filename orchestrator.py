@@ -256,6 +256,12 @@ async def run_loop(
 
             # 3. Score against ground truth
             await _broadcast({"type": "step", "step": "scoring", "batch_number": batch_num})
+            # persist this batch's tiles so the segmentation grid can repaint on reload
+            try:
+                Path("last_tiles.json").write_text(json.dumps(predictions))
+            except Exception:
+                pass
+
             scores = await asyncio.to_thread(score_batch, predictions)
 
             # 4. Update graph with new error patterns / heuristics

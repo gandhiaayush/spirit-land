@@ -96,22 +96,47 @@ async def upload_dataset(files: list[UploadFile] = File(...)):
     return {"dataset_dir": str(dataset_dir), "count": count}
 
 
+@app.get("/tiles")
+def get_tiles():
+    """Latest run's tile predictions (with grid pos + image_url) so the segmentation grid
+    repaints on page load."""
+    p = Path("last_tiles.json")
+    return json.loads(p.read_text()) if p.exists() else []
+
+
 @app.delete("/session")
 def clear_session():
+    """Full reset: wipe session, the in-memory graph, and the persisted tiles (Start = restart)."""
     persistence.clear_session()
+    try:
+        import memory_graph
+        memory_graph.reset_graph()
+    except Exception:
+        pass
+    try:
+        Path("last_tiles.json").unlink(missing_ok=True)
+    except Exception:
+        pass
     return {"status": "cleared"}
 
 
 @app.post("/correction")
-async def submit_correction(tile_id: str, corrected_label: str):
-    """Scientist submits a manual correction for a misclassified tile."""
+async def submit_correction(tile_id: str, corrected_label: str, predicted_label: str = ""):
+    """Scientist submits a manual correction for a misclassified tile. This LEARNS: the
+    override is treated as ground truth, producing an ErrorPattern + heuristic immediately.
+    The Strategist call is blocking (Gemini), so run it off the event loop."""
+    import memory_graph
+    new_ids = await asyncio.to_thread(
+        memory_graph.learn_from_correction, predicted_label, corrected_label, tile_id)
     await orchestrator._broadcast({
         "type": "correction_applied",
         "tile_id": tile_id,
         "corrected_label": corrected_label,
+        "new_heuristic_ids": new_ids,
         "timestamp": datetime.utcnow().isoformat(),
     })
-    return {"status": "received", "tile_id": tile_id, "corrected_label": corrected_label}
+    return {"status": "learned", "tile_id": tile_id, "corrected_label": corrected_label,
+            "new_heuristic_ids": new_ids}
 
 
 @app.get("/arm")
