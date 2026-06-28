@@ -8,3 +8,11 @@ frontend/node_modules/
 frontend/.next/
 data/
 frontend/public/tiles/**/*.json
+.venv/
+venv/
+*.pyc
+*.pyo
+key.json
+data/patches/
+*.png
+CLAUDE.local.md

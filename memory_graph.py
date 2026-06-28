@@ -198,11 +198,8 @@ _client_singleton: genai.Client | None = None
 def _client() -> genai.Client:
     global _client_singleton
     if _client_singleton is None:
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "Set GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env file")
-        _client_singleton = genai.Client(api_key=api_key)
+        import config
+        _client_singleton = config.genai_client()   # Vertex AI (no free-tier quota)
     return _client_singleton
 
 

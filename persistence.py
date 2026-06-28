@@ -27,10 +27,9 @@ def _get_client():
     global _client
     if _client is None:
         from google import genai  # only import when actually needed
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if not api_key or api_key == "placeholder":
-            raise EnvironmentError("Set a real GOOGLE_API_KEY in your .env file")
-        _client = genai.Client(api_key=api_key)
+        project = os.environ.get("GCP_PROJECT", "ai-hack-sf26sfo-7095")
+        import config
+        _client = genai.Client(vertexai=True, project=project, location="global", credentials=config.get_credentials())
     return _client
 
 

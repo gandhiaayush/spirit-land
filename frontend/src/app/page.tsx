@@ -23,7 +23,7 @@ export default function Home() {
   const [batchSize, setBatchSize]   = useState(20);
 
   // Dataset source
-  const [datasetMode, setDatasetMode] = useState<"demo" | "upload">("demo");
+  const [datasetMode, setDatasetMode] = useState<"demo" | "upload" | "connect">("demo");
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -91,6 +91,11 @@ export default function Home() {
 
   const handleStart = useCallback(async () => {
     setUploadError(null);
+
+    // "Connect To…" is a placeholder integration — no run, just an inline note.
+    if (datasetMode === "connect") {
+      return;
+    }
 
     // If using uploaded images, push them first and resolve a dataset_dir.
     let datasetDir: string | null = null;
@@ -230,13 +235,17 @@ export default function Home() {
             <label className="label">Dataset</label>
             <select
               value={datasetMode}
-              onChange={(e) => { setDatasetMode(e.target.value as "demo" | "upload"); setUploadError(null); }}
+              onChange={(e) => { setDatasetMode(e.target.value as "demo" | "upload" | "connect"); setUploadError(null); }}
               disabled={running}
               className="bg-white border border-slate-200 px-2 py-1 text-slate-900 text-sm focus:outline-none focus:border-emerald-400 disabled:opacity-40"
             >
               <option value="demo">Google EarthEngine (Sample)</option>
-              <option value="upload">Upload files</option>
+              <option value="upload">Upload Data</option>
+              <option value="connect">Connect To…</option>
             </select>
+            {datasetMode === "connect" && (
+              <span className="text-[11px] text-slate-400 mt-1">Integration coming soon</span>
+            )}
             {datasetMode === "upload" && (
               <div className="flex flex-col gap-0.5 mt-1">
                 <input
