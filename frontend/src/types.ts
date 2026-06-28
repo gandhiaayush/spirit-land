@@ -17,6 +17,8 @@ export interface TileRecord {
   retrieved_heuristic_ids: string[];
   timestamp: string;
   image_url?: string;
+  grid_row?: number;
+  grid_col?: number;
 }
 
 export interface Session {

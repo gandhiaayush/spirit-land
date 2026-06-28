@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ConfusionBreakdown from "@/components/ConfusionBreakdown";
 import HeuristicsList from "@/components/HeuristicsList";
 import TileCarousel from "@/components/TileCarousel";
+import SegmentationGrid from "@/components/SegmentationGrid";
 import type { BatchRecord, PipelineStep, SSEEvent, Session, TileRecord } from "@/types";
 
 export default function Home() {
@@ -17,6 +18,12 @@ export default function Home() {
   const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [memoryEnabled, setMemoryEnabled] = useState(true);
   const [nextFocus, setNextFocus] = useState<string[]>([]);
+
+  // Accumulated tiles for the Segmentation view (persist across batches)
+  const [segTiles, setSegTiles] = useState<TileRecord[]>([]);
+
+  // Active main-content tab
+  const [activeTab, setActiveTab] = useState<"dashboard" | "segmentation">("dashboard");
 
   // Run controls
   const [numBatches, setNumBatches] = useState(5);
@@ -67,6 +74,7 @@ export default function Home() {
       } else if (event.type === "tile_classified") {
         setTotalTilesInBatch(event.total_tiles);
         setCurrentBatchTiles((prev) => [...prev, event.tile]);
+        setSegTiles((prev) => [...prev, event.tile]);
       } else if (event.type === "batch_complete") {
         setSession(event.session);
         setCurrentStep(null);
@@ -119,6 +127,7 @@ export default function Home() {
 
     setRunning(true);
     setNextFocus([]);
+    setSegTiles([]);
     // Switch the ablation arm before the run: Memory On → reflective, Memory Off → cold.
     try {
       await fetch(`/api/arm?arm=${memoryEnabled ? "reflective" : "cold"}`, { method: "POST" });
@@ -141,6 +150,7 @@ export default function Home() {
     setTotalTilesInBatch(0);
     setCorrections({});
     setNextFocus([]);
+    setSegTiles([]);
   }, []);
 
   const handleCorrection = useCallback((tile: TileRecord, label: string) => {
@@ -293,6 +303,34 @@ export default function Home() {
           )}
         </div>
 
+        {/* ── Tab navigation ──────────────────────────────────────────────── */}
+        <div className="flex items-stretch border-b border-slate-200">
+          {([
+            { id: "dashboard", label: "Dashboard" },
+            { id: "segmentation", label: "Segmentation" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-5 py-2.5 text-sm font-medium transition border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? "border-emerald-600 text-slate-900"
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Segmentation tab ────────────────────────────────────────────── */}
+        {activeTab === "segmentation" && (
+          <SegmentationGrid tiles={segTiles} />
+        )}
+
+        {/* ── Dashboard tab ───────────────────────────────────────────────── */}
+        {activeTab === "dashboard" && (
+        <>
         {/* ── Empty state ─────────────────────────────────────────────────── */}
         {!hasTiles && !running && (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center border-b border-slate-200">
@@ -345,6 +383,8 @@ export default function Home() {
               Error patterns and heuristics are not being accumulated. Toggle Memory On to enable the self-improving loop.
             </p>
           </div>
+        )}
+        </>
         )}
 
         {/* Footer */}
