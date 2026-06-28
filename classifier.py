@@ -144,6 +144,7 @@ class ClassifierAgent:
                 response = _client.models.generate_content(
                     model=GEMINI_MODEL,
                     contents=[img, prompt],
+                    config={"temperature": 0},
                 )
                 break
             except Exception as e:
